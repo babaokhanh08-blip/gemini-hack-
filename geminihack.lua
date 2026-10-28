@@ -1,5 +1,5 @@
--- // BLOX FRUITS V10 — REDZ SOVEREIGN (ZERO-TELEPORT-GLITCH & STREAMED BOSS BUILD) //
--- Fixes: Quest loop grace lock, linear anti-rubberband tween, ReplicatedStorage + Workspace Boss scanner.
+-- // BLOX FRUITS V11 — REDZ APEX EDITION (DELTA X / ZERO RUBBERBAND / FIXED QUEST ENGINE) //
+-- Fixed: Quest.Visible detection, Smooth Rotation-Preserving Heartbeat Mover, Full Sea 1-2-3 Unlocks & Endgame.
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -10,7 +10,6 @@ local cloneref = cloneref or function(o) return o end
 local Players = cloneref(game:GetService("Players"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 local RunService = cloneref(game:GetService("RunService"))
-local TweenService = cloneref(game:GetService("TweenService"))
 local VirtualUser = cloneref(game:GetService("VirtualUser"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local Workspace = cloneref(game:GetService("Workspace"))
@@ -46,8 +45,8 @@ pcall(function()
     VirtualInputManager = cloneref(game:GetService("VirtualInputManager"))
 end)
 
--- // 2. Teardown Previous Instance //
-local SuiteName = "OllieBench_RedzV10"
+-- // 2. Clean Teardown of Previous Session //
+local SuiteName = "OllieBench_RedzV11"
 if getgenv().OllieBF_Teardown then
     pcall(getgenv().OllieBF_Teardown)
 end
@@ -77,7 +76,7 @@ for _, child in ipairs(GuiParent:GetChildren()) do
     end
 end
 
--- // 3. Remote Dispatcher //
+-- // 3. Remotes & Fast Dispatcher //
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
 local CommF = Remotes and Remotes:WaitForChild("CommF_", 15)
 local CommE = Remotes and Remotes:FindFirstChild("CommE")
@@ -118,11 +117,11 @@ task.spawn(function()
 end)
 
 -- // 4. Configuration //
-local ConfigFolder = "OllieBench_RedzV10"
+local ConfigFolder = "OllieBench_RedzV11"
 local ConfigFile = ConfigFolder .. "/cfg_" .. tostring(LocalPlayer.UserId) .. ".json"
 
 local Config = {
-    -- Core Weapon & Tween (Safe linear speed 275 prevents server rubberbanding)
+    -- Core Weapon & Smooth Speed
     SelectedWeapon = "Melee", -- "Melee", "Sword", "Blox Fruit", "Gun"
     MasteryWeapon = "Blox Fruit",
     FarmDistanceY = 22,
@@ -160,12 +159,16 @@ local Config = {
     SkillV = false,
     SkillF = false,
 
-    -- Quests & Swords
+    -- Sea Unlocks, Quests & Swords
+    AutoSecondSea = false,
+    AutoThirdSea = false,
     AutoSaber = false,
     AutoBartilo = false,
     AutoRengoku = false,
     AutoYama = false,
     AutoTushita = false,
+    AutoCDK = false,
+    AutoSoulGuitar = false,
 
     -- Sea Events & Race V4
     AutoSeaBeast = false,
@@ -201,8 +204,8 @@ local Config = {
 
     -- ESP
     ESPPlayers = false,
-    ESPFruits = false,
     ESPBosses = false,
+    ESPFruits = false,
     ESPFlowers = false,
     ESPMirage = false,
     ESPIslands = false,
@@ -215,10 +218,9 @@ local Runtime = {
     AimbotPart = nil,
     BringPos = nil,
     BringFilter = nil,
-    ActiveTween = nil,
-    LastTweenGoal = nil,
+    MoveGoalPos = nil, -- Smooth Heartbeat destination Vector3
+    MoveStopOnArrive = false,
     LastAcceptedQuestName = nil,
-    QuestGraceUntil = 0,
     LastStartQuestCall = 0,
     LastAbandonQuestCall = 0,
 }
@@ -279,7 +281,6 @@ local function DetectSea()
 end
 DetectSea()
 
--- Complete Boss Database Across Sea 1, Sea 2, Sea 3 (Used when Boss is in ReplicatedStorage or Unstreamed)
 local BossDatabase = {
     [1] = {
         {Name = "The Gorilla King", QuestName = "JungleQuest", QuestLvl = 3, QuestPos = CFrame.new(-1598.08, 35.55, 153.37), BossPos = CFrame.new(-1129.88, 40.46, -525.42)},
@@ -467,7 +468,7 @@ local IslandLocations = {
     }
 }
 
--- // 6. Pure Linear Tween Engine (Zero Portal Spam / Zero Y-Snap Rubberbanding) //
+-- // 6. Rotation-Preserving Smooth Heartbeat Mover (Zero Snap / Zero Rubberband) //
 TrackConn(LocalPlayer.Idled, function()
     if Config.AntiAFK then
         pcall(function()
@@ -506,70 +507,75 @@ local function CleanMobName(rawName)
     return string.gsub(s, "^%s*(.-)%s*$", "%1")
 end
 
-local function StopTween()
-    if Runtime.ActiveTween then
-        pcall(function() Runtime.ActiveTween:Cancel() end)
-        Runtime.ActiveTween = nil
-    end
-    Runtime.LastTweenGoal = nil
+local function StopMove()
+    Runtime.MoveGoalPos = nil
+    Runtime.MoveStopOnArrive = false
     Runtime.BringPos = nil
     local root = GetRoot()
     if root then
-        local bv = root:FindFirstChild("RedzV10_BV")
+        local bv = root:FindFirstChild("RedzV11_BV")
         if bv then bv:Destroy() end
     end
 end
 
--- Pure linear TweenTo without discontinuous Y-snaps or portal teleports that cause rubberbanding
-local function TweenTo(targetCF)
-    if not targetCF then return end
-    local root = GetRoot()
-    local hum = GetHum()
-    if not root or not hum or hum.Health <= 0 then return end
-
-    if hum.Sit then hum.Sit = false end
-
-    local bv = root:FindFirstChild("RedzV10_BV")
-    if not bv then
-        bv = Instance.new("BodyVelocity")
-        bv.Name = "RedzV10_BV"
-        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-        bv.Velocity = Vector3.zero
-        bv.Parent = root
-    end
-    bv.Velocity = Vector3.zero
-    root.AssemblyLinearVelocity = Vector3.zero
-
-    local targetPos = targetCF.Position
-    local dist = (root.Position - targetPos).Magnitude
-
-    -- Within 15 studs: lock cleanly to target position
-    if dist <= 15 then
-        if Runtime.ActiveTween then
-            pcall(function() Runtime.ActiveTween:Cancel() end)
-            Runtime.ActiveTween = nil
-        end
-        Runtime.LastTweenGoal = nil
-        root.CFrame = CFrame.new(targetPos)
+local function MoveToCFrame(targetCF, stopOnArrive)
+    if not targetCF then
+        StopMove()
         return
     end
-
-    -- Keep playing current tween if destination hasn't shifted by more than 10 studs
-    if Runtime.ActiveTween and Runtime.LastTweenGoal and (Runtime.LastTweenGoal.Position - targetPos).Magnitude < 10 then
-        return
-    end
-
-    if Runtime.ActiveTween then
-        pcall(function() Runtime.ActiveTween:Cancel() end)
-    end
-
-    local speed = math.clamp(Config.TweenSpeed, 180, 325)
-    local duration = math.max(0.06, dist / speed)
-    local goalCF = CFrame.new(targetPos)
-    Runtime.LastTweenGoal = goalCF
-    Runtime.ActiveTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = goalCF})
-    Runtime.ActiveTween:Play()
+    Runtime.MoveGoalPos = targetCF.Position
+    Runtime.MoveStopOnArrive = (stopOnArrive == true)
 end
+
+-- Runs every physics frame: interpolates position smoothly while preserving character rotation!
+TrackConn(RunService.Heartbeat, function(dt)
+    pcall(function()
+        local goalPos = Runtime.MoveGoalPos
+        local root = GetRoot()
+        local hum = GetHum()
+        if not goalPos or not root or not hum or hum.Health <= 0 then
+            if root then
+                local bv = root:FindFirstChild("RedzV11_BV")
+                if bv then bv:Destroy() end
+            end
+            return
+        end
+
+        if hum.Sit then hum.Sit = false end
+
+        local bv = root:FindFirstChild("RedzV11_BV")
+        if not bv then
+            bv = Instance.new("BodyVelocity")
+            bv.Name = "RedzV11_BV"
+            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            bv.Velocity = Vector3.zero
+            bv.Parent = root
+        end
+        bv.Velocity = Vector3.zero
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+
+        local curPos = root.Position
+        local rot = root.CFrame - curPos
+        local diff = goalPos - curPos
+        local dist = diff.Magnitude
+
+        if dist <= 1.5 then
+            root.CFrame = CFrame.new(goalPos) * rot
+            if Runtime.MoveStopOnArrive then
+                Runtime.MoveGoalPos = nil
+                Runtime.MoveStopOnArrive = false
+                bv:Destroy()
+            end
+            return
+        end
+
+        local speed = math.clamp(Config.TweenSpeed, 180, 325)
+        local step = math.min(dist, speed * dt)
+        local nextPos = curPos + (diff.Unit * step)
+        root.CFrame = CFrame.new(nextPos) * rot
+    end)
+end)
 
 -- // 7. Multi-Language Weapon Equip (EN & VN) //
 local ToolCategoryMatchers = {
@@ -632,7 +638,7 @@ local function EquipSelectedWeapon(categoryOverride, exactNameOverride)
                 pcall(function() hum:EquipTool(item) end)
                 return item
             end
-            if not fallbackTool and item.Name ~= "Special Microchip" and item.Name ~= "Holy Torch" and item.Name ~= "Hidden Key" then
+            if not fallbackTool and item.Name ~= "Special Microchip" and item.Name ~= "Holy Torch" and item.Name ~= "Hidden Key" and item.Name ~= "God's Chalice" and item.Name ~= "Fist of Darkness" then
                 fallbackTool = item
             end
         end
@@ -770,6 +776,7 @@ task.spawn(function()
                 or Config.AutoFactory or Config.AutoPirateRaid or Config.AutoRaidDungeon
                 or Config.AutoTerrorshark or Config.AutoGhostShip or Config.AutoTrialV4
                 or Config.AutoSaber or Config.AutoBartilo or Config.AutoRengoku
+                or Config.AutoSecondSea or Config.AutoThirdSea or Config.AutoCDK or Config.AutoSoulGuitar
                 or Config.AutoFarmMastery or (Runtime.TargetMob ~= nil)
             if active then
                 ExecuteRedzTripleAttack()
@@ -788,7 +795,7 @@ TrackConn(RunService.Stepped, function()
             raw_sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
         end
 
-        local anyActive = Config.NoClip or (Runtime.ActiveTween ~= nil) or (Runtime.TargetMob ~= nil)
+        local anyActive = Config.NoClip or (Runtime.MoveGoalPos ~= nil) or (Runtime.TargetMob ~= nil)
             or Config.AutoFarmLevel or Config.AutoFarmNearest or Config.AutoFarmBosses
             or Config.AutoFarmChest or Config.AutoFarmBone or Config.AutoFarmKatakuri or Config.AutoRaidDungeon
         if anyActive and char then
@@ -877,8 +884,8 @@ getgenv().OllieBF_SilentAimHandler = function(self, ...)
 end
 
 pcall(function()
-    if raw_hookmetamethod and raw_getnamecallmethod and not getgenv().OllieBF_V10Hooked then
-        getgenv().OllieBF_V10Hooked = true
+    if raw_hookmetamethod and raw_getnamecallmethod and not getgenv().OllieBF_V11Hooked then
+        getgenv().OllieBF_V11Hooked = true
         local oldNamecall
         oldNamecall = raw_hookmetamethod(game, "__namecall", raw_newcclosure(function(self, ...)
             if not raw_checkcaller() and getgenv().OllieBF_SilentAimHandler then
@@ -892,7 +899,7 @@ pcall(function()
     end
 end)
 
--- // 11. Grace-Locked Quest Checker & ReplicatedStorage + Workspace Boss Scanner //
+-- // 11. FIXED Quest Checker (Strictly Checks PlayerGui.Main.Quest.Visible!) & Boss Scanner //
 local function GetQuestForLevel()
     local lvl = GetLevel()
     local list = QuestDatabase[Runtime.CurrentSea]
@@ -907,25 +914,16 @@ local function GetQuestForLevel()
     return chosen
 end
 
--- Robust Quest Active Check with 4-Second Grace Period after StartQuest!
-local function HasActiveQuestForBracket(qData)
-    -- If we just called StartQuest for this bracket within the last 4 seconds, treat as active so we don't loop at the NPC!
-    if Runtime.LastAcceptedQuestName == qData.QuestName and os.clock() < Runtime.QuestGraceUntil then
-        return true
-    end
-
+-- THE CRITICAL V11 FIX: Never check container.Visible (which is always true)! Only check qFrame.Visible!
+local function IsQuestVisibleOnScreen(qData)
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     local main = pgui and pgui:FindFirstChild("Main")
     local qFrame = main and main:FindFirstChild("Quest")
-    if not qFrame then return false end
-
-    local container = qFrame:FindFirstChild("Container")
-    local isVis = (qFrame.Visible == true) or (container and container.Visible == true and qFrame.Position.Y.Scale > -0.5)
-    if not isVis then
+    if not qFrame or qFrame.Visible ~= true then
         return false
     end
 
-    -- Only abandon if we leveled up into a new QuestName bracket
+    -- If we leveled up into a new QuestName bracket while holding an old quest, abandon the old quest once
     if Runtime.LastAcceptedQuestName and Runtime.LastAcceptedQuestName ~= qData.QuestName then
         if os.clock() - Runtime.LastAbandonQuestCall > 3.0 then
             Runtime.LastAbandonQuestCall = os.clock()
@@ -983,18 +981,15 @@ local function FindLiveEnemy(nameFilter, bossOnly, centerPos, maxRadius)
     return best
 end
 
--- Full Boss Scanner: Checks Workspace.Enemies first, then ReplicatedStorage + BossDatabase!
 local function FindAnyBossInServer()
     local specific = Config.SelectedSpecificBoss
     local filterSpecific = (specific and specific ~= "All Bosses") and specific or nil
 
-    -- 1. Check live streamed bosses in Workspace.Enemies
     local liveBoss = FindLiveEnemy(filterSpecific, filterSpecific == nil)
     if liveBoss then
         return liveBoss, liveBoss.HumanoidRootPart.CFrame, CleanMobName(liveBoss.Name)
     end
 
-    -- 2. Check unstreamed bosses waiting in ReplicatedStorage
     local seaBosses = BossDatabase[Runtime.CurrentSea] or {}
     for _, bInfo in ipairs(seaBosses) do
         if not filterSpecific or bInfo.Name == filterSpecific then
@@ -1010,7 +1005,6 @@ local function FindAnyBossInServer()
         end
     end
 
-    -- 3. If user selected a specific boss, move to its spawn point so it streams in
     if filterSpecific then
         for _, bInfo in ipairs(seaBosses) do
             if bInfo.Name == filterSpecific then
@@ -1033,7 +1027,7 @@ local function AttackAndHoverMob(mob, bringFilterName)
     Runtime.BringFilter = bringFilterName or CleanMobName(mob.Name)
 
     local hoverCF = CFrame.new(mr.Position + Vector3.new(0, Config.FarmDistanceY, 0))
-    TweenTo(hoverCF)
+    MoveToCFrame(hoverCF, false)
 
     local hpPct = (mh.Health / math.max(1, mh.MaxHealth)) * 100
     if Config.AutoFarmMastery and hpPct <= Config.MasteryHealthPct then
@@ -1063,7 +1057,7 @@ local function FireAllInteractables(inst)
     end
 end
 
--- // 12. ESP System (Includes ESPBosses) //
+-- // 12. ESP System //
 local ESPFolder = Instance.new("Folder")
 ESPFolder.Name = SuiteName .. "_ESP"
 ESPFolder.Parent = GuiParent
@@ -1169,7 +1163,7 @@ local function RefreshESP()
     end
 end
 
--- // 13. Redz V10 Crimson-Dark UI //
+-- // 13. Redz V11 Crimson-Dark UI //
 local function MakeDraggable(handle, frame)
     local dragging, activeInput, dragStart, startPos = false, nil, nil, nil
     TrackConn(handle.InputBegan, function(input)
@@ -1225,7 +1219,7 @@ HeaderTitle.Font = Enum.Font.GothamBold
 HeaderTitle.TextSize = 13
 HeaderTitle.TextColor3 = Color3.fromRGB(255, 65, 80)
 HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-HeaderTitle.Text = string.format("REDZ V10 SOVEREIGN // [SEA %d]", Runtime.CurrentSea)
+HeaderTitle.Text = string.format("REDZ V11 APEX // [SEA %d]", Runtime.CurrentSea)
 
 local StatusLabel = Instance.new("TextLabel", Header)
 StatusLabel.Size = UDim2.new(0.45, -75, 1, 0)
@@ -1338,7 +1332,7 @@ local function AddSection(page, text)
     Lbl.Text = ">> " .. string.upper(text)
 end
 
-local function AddToggle(page, text, key, stopsTween, callback)
+local function AddToggle(page, text, key, stopsMove, callback)
     local Row = Instance.new("Frame", page)
     Row.Size = UDim2.new(1, -16, 0, 32)
     Row.BackgroundColor3 = Color3.fromRGB(28, 20, 26)
@@ -1373,8 +1367,8 @@ local function AddToggle(page, text, key, stopsTween, callback)
         Config[key] = not Config[key]
         Sync()
         SaveConfig()
-        if not Config[key] and stopsTween then
-            StopTween()
+        if not Config[key] and stopsMove then
+            StopMove()
             Runtime.TargetMob = nil
         end
         if callback then pcall(callback, Config[key]) end
@@ -1436,7 +1430,7 @@ end
 
 -- // 14. Build All 7 Tabs //
 local TabFarm, FirstBtn = CreateTab("Main Farm")
-local TabQuests = CreateTab("SubFarm & Boss")
+local TabQuests = CreateTab("Quests & Items")
 local TabSea = CreateTab("Sea Event & V4")
 local TabFruitRaid = CreateTab("Fruit & Raid")
 local TabShop = CreateTab("Stats & Shop")
@@ -1448,12 +1442,12 @@ FirstBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TabFarm.Visible = true
 
 -- Tab 1: Main Farm
-AddSection(TabFarm, "Weapon & Linear Tween (Anti-Rubberband)")
+AddSection(TabFarm, "Weapon & Smooth Glide Speed")
 AddCycle(TabFarm, "Select Weapon", {"Melee", "Sword", "Blox Fruit", "Gun"}, "SelectedWeapon")
 AddCycle(TabFarm, "Hover Distance Y", {18, 22, 26, 32, 40}, "FarmDistanceY")
-AddCycle(TabFarm, "Tween Speed", {225, 250, 275, 300, 325}, "TweenSpeed")
+AddCycle(TabFarm, "Glide Speed", {225, 250, 275, 300, 325}, "TweenSpeed")
 AddSection(TabFarm, "Auto Farm Level & Bosses")
-AddToggle(TabFarm, "Auto Farm Level (Grace-Locked Quest)", "AutoFarmLevel", true)
+AddToggle(TabFarm, "Auto Farm Level (Fixed Quest.Visible Check!)", "AutoFarmLevel", true)
 AddToggle(TabFarm, "Auto Farm Nearest Mob", "AutoFarmNearest", true)
 AddToggle(TabFarm, "Auto Farm All Bosses (Streams From Server)", "AutoFarmBosses", true)
 
@@ -1471,8 +1465,10 @@ AddToggle(TabFarm, "Bring Mobs (PosLock)", "BringMobs", false)
 AddToggle(TabFarm, "Auto Buso Haki", "AutoBuso", false)
 AddToggle(TabFarm, "Auto Observation Haki", "AutoKen", false)
 
--- Tab 2: SubFarm & Bosses
-AddSection(TabQuests, "Sea 3 Grinds (Bones & Cake Prince)")
+-- Tab 2: Quests & Items
+AddSection(TabQuests, "Sea Progression & Endgame Grinds")
+AddToggle(TabQuests, "Auto Dressrosa / Second Sea Quest (Lv >= 700)", "AutoSecondSea", true)
+AddToggle(TabQuests, "Auto Zou / Third Sea Quest (Lv >= 1500)", "AutoThirdSea", true)
 AddToggle(TabQuests, "Auto Farm Bones (Haunted Castle)", "AutoFarmBone", true)
 AddToggle(TabQuests, "Auto Random Surprise (50 Bones)", "AutoTradeBones", false)
 AddToggle(TabQuests, "Auto Cake Prince / Dough King", "AutoFarmKatakuri", true)
@@ -1480,12 +1476,14 @@ AddToggle(TabQuests, "Auto Spawn Cake Prince", "AutoSpawnCakePrince", false)
 AddToggle(TabQuests, "Auto Elite Hunter (Diablo/Deandre/Urban)", "AutoEliteHunter", true)
 AddToggle(TabQuests, "Auto Pirate Raid (Castle on the Sea)", "AutoPirateRaid", true)
 AddToggle(TabQuests, "Auto Factory Core (Sea 2)", "AutoFactory", true)
-AddSection(TabQuests, "Auto Quests & Swords")
+AddSection(TabQuests, "Auto Swords & Guns")
 AddToggle(TabQuests, "Auto Saber Unlock (Sea 1)", "AutoSaber", true)
 AddToggle(TabQuests, "Auto Bartilo Quest (Sea 2)", "AutoBartilo", true)
 AddToggle(TabQuests, "Auto Rengoku Sword (Sea 2)", "AutoRengoku", true)
 AddToggle(TabQuests, "Auto Pull Yama (Sea 3)", "AutoYama", true)
 AddToggle(TabQuests, "Auto Tushita Torches (Sea 3)", "AutoTushita", true)
+AddToggle(TabQuests, "Auto Cursed Dual Katana (CDK Pedestals)", "AutoCDK", true)
+AddToggle(TabQuests, "Auto Soul Guitar Puzzle (Sea 3)", "AutoSoulGuitar", true)
 AddSection(TabQuests, "Fruit & Gun Mastery")
 AddToggle(TabQuests, "Auto Farm Mastery", "AutoFarmMastery", true)
 AddCycle(TabQuests, "Mastery Target", {"Blox Fruit", "Gun", "Sword"}, "MasteryWeapon")
@@ -1508,8 +1506,8 @@ AddSection(TabSea, "Race V4 & Temple of Time")
 AddToggle(TabSea, "Auto Pull Race V4 Lever", "AutoPullLever", true)
 AddToggle(TabSea, "Auto Trial Race V4", "AutoTrialV4", true)
 AddToggle(TabSea, "Auto Activate Race V4 (Y Key)", "AutoActivateV4", false)
-AddButton(TabSea, "Tween -> Temple of Time", function()
-    TweenTo(CFrame.new(28286.35, 14895.30, 102.62))
+AddButton(TabSea, "Glide -> Temple of Time", function()
+    MoveToCFrame(CFrame.new(28286.35, 14895.30, 102.62), true)
 end)
 
 -- Tab 4: Fruit & Raid Dungeon
@@ -1563,14 +1561,14 @@ AddSection(TabTeleport, "Cross-Sea Travel")
 AddButton(TabTeleport, "Travel -> First Sea", function() InvokeCommF("TravelMain") end)
 AddButton(TabTeleport, "Travel -> Second Sea", function() InvokeCommF("TravelDressrosa") end)
 AddButton(TabTeleport, "Travel -> Third Sea", function() InvokeCommF("TravelZou") end)
-AddSection(TabTeleport, "Islands")
+AddSection(TabTeleport, "Islands (Smooth Glide)")
 for name, cf in pairs(IslandLocations[Runtime.CurrentSea] or {}) do
-    AddButton(TabTeleport, "Tween -> " .. name, function()
+    AddButton(TabTeleport, "Glide -> " .. name, function()
         Runtime.TaskName = "Teleport: " .. name
-        TweenTo(cf)
+        MoveToCFrame(cf, true)
     end)
 end
-AddButton(TabTeleport, "Stop Active Tween", StopTween)
+AddButton(TabTeleport, "Stop Active Movement", StopMove)
 
 -- Tab 7: ESP & Settings
 AddSection(TabMisc, "ESP")
@@ -1589,7 +1587,6 @@ AddToggle(TabMisc, "FullBright", "FullBright", false)
 AddButton(TabMisc, "Force Abandon Current Quest", function()
     InvokeCommF("AbandonQuest")
     Runtime.LastAcceptedQuestName = nil
-    Runtime.QuestGraceUntil = 0
 end)
 AddButton(TabMisc, "FPS Boost (SmoothPlastic)", function()
     Lighting.GlobalShadows = false
@@ -1601,7 +1598,7 @@ AddButton(TabMisc, "FPS Boost (SmoothPlastic)", function()
     end
 end)
 
--- // 15. Primary Redz V10 Automation Loop //
+-- // 15. Primary Redz V11 Automation Loop //
 local LastCakeSpawn = 0
 local LastEliteCheck = 0
 
@@ -1617,7 +1614,7 @@ task.spawn(function()
             local hum = GetHum()
             if not root or not hum or hum.Health <= 0 then
                 Runtime.TaskName = "Waiting Respawn"
-                StopTween()
+                StopMove()
                 return
             end
 
@@ -1640,7 +1637,7 @@ task.spawn(function()
                         local h = obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")
                         if h then
                             Runtime.TaskName = "Grabbing " .. obj.Name
-                            TweenTo(h.CFrame)
+                            MoveToCFrame(h.CFrame, false)
                             if (root.Position - h.Position).Magnitude <= 15 then
                                 FireAllInteractables(obj)
                             end
@@ -1650,7 +1647,52 @@ task.spawn(function()
                 end
             end
 
-            -- 2. Auto Raid Dungeon
+            -- 2. Auto Second Sea Quest (Sea 1, Level >= 700)
+            if Config.AutoSecondSea and Runtime.CurrentSea == 1 and GetLevel() >= 700 then
+                local prog = InvokeCommF("DressrosaQuestProgress", "Dressrosa")
+                if prog == 0 then
+                    Runtime.TaskName = "2nd Sea: Getting Key"
+                    InvokeCommF("DressrosaQuestProgress", "Detective")
+                    if HasItem("Key") then
+                        EquipSelectedWeapon(nil, "Key")
+                        MoveToCFrame(CFrame.new(1347.71, 37.35, -1325.64), false)
+                        InvokeCommF("DressrosaQuestProgress", "UseKey")
+                    end
+                    return
+                else
+                    local iceAdmiral = FindLiveEnemy("Ice Admiral", false)
+                    if iceAdmiral then
+                        Runtime.TaskName = "2nd Sea: Killing Ice Admiral"
+                        AttackAndHoverMob(iceAdmiral, nil)
+                    else
+                        Runtime.TaskName = "2nd Sea: Moving to Ice Cave"
+                        MoveToCFrame(CFrame.new(1347.71, 37.35, -1325.64), false)
+                        InvokeCommF("TravelDressrosa")
+                    end
+                    return
+                end
+            end
+
+            -- 3. Auto Third Sea Quest (Sea 2, Level >= 1500)
+            if Config.AutoThirdSea and Runtime.CurrentSea == 2 and GetLevel() >= 1500 then
+                local zProg = InvokeCommF("ZQuestProgress", "Check")
+                if zProg == 0 then
+                    local ripIndra = FindLiveEnemy("rip_indra", false)
+                    if ripIndra then
+                        Runtime.TaskName = "3rd Sea: Fighting rip_indra"
+                        AttackAndHoverMob(ripIndra, nil)
+                    else
+                        InvokeCommF("ZQuestProgress", "Begin")
+                        MoveToCFrame(CFrame.new(-1926.32, 12.15, 1738.30), false)
+                    end
+                    return
+                elseif zProg == 1 then
+                    InvokeCommF("TravelZou")
+                    return
+                end
+            end
+
+            -- 4. Auto Raid Dungeon
             if Config.AutoRaidDungeon then
                 local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
                 if locs then
@@ -1673,7 +1715,7 @@ task.spawn(function()
                                     end
                                 end
                             else
-                                TweenTo(p.CFrame * CFrame.new(0, 50, 0))
+                                MoveToCFrame(p.CFrame * CFrame.new(0, 50, 0), false)
                             end
                             return
                         end
@@ -1681,7 +1723,7 @@ task.spawn(function()
                 end
             end
 
-            -- 3. Auto Start Raid Console
+            -- 5. Auto Start Raid Console
             if Config.AutoStartRaid and (Runtime.CurrentSea == 2 or Runtime.CurrentSea == 3) and HasItem("Special Microchip") then
                 local pgui = LocalPlayer:FindFirstChild("PlayerGui")
                 local timer = pgui and pgui:FindFirstChild("Main") and pgui.Main:FindFirstChild("Timer")
@@ -1692,7 +1734,7 @@ task.spawn(function()
                     local btn = raidLab and raidLab:FindFirstChild("Button") and raidLab.Button:FindFirstChild("Main")
                     if btn and btn:IsA("BasePart") then
                         Runtime.TaskName = "Starting Raid Console"
-                        TweenTo(btn.CFrame * CFrame.new(0, 4, 0))
+                        MoveToCFrame(btn.CFrame * CFrame.new(0, 4, 0), false)
                         if (root.Position - btn.Position).Magnitude <= 20 then
                             EquipSelectedWeapon(nil, "Special Microchip")
                             FireAllInteractables(btn)
@@ -1702,14 +1744,14 @@ task.spawn(function()
                 end
             end
 
-            -- 4. Kitsune Island & Mirage
+            -- 6. Kitsune Island & Mirage
             if Config.AutoKitsuneIsland and Runtime.CurrentSea == 3 then
                 for _, obj in ipairs(Workspace:GetChildren()) do
                     if obj.Name == "EmberTemplate" or string.find(obj.Name, "AzureEmber") then
                         local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
                         if p then
                             Runtime.TaskName = "Collecting Azure Ember"
-                            TweenTo(p.CFrame)
+                            MoveToCFrame(p.CFrame, false)
                             FireAllInteractables(obj)
                             return
                         end
@@ -1724,7 +1766,7 @@ task.spawn(function()
                     for _, v in ipairs(mystic:GetDescendants()) do
                         if v:IsA("MeshPart") and (v.MeshId == "rbxassetid://10153114969" or v.Name == "Gear") then
                             Runtime.TaskName = "Grabbing Blue Gear"
-                            TweenTo(v.CFrame)
+                            MoveToCFrame(v.CFrame, false)
                             FireAllInteractables(v)
                             return
                         end
@@ -1738,12 +1780,12 @@ task.spawn(function()
                 local p = mirage and (mirage:IsA("BasePart") and mirage or mirage:FindFirstChildWhichIsA("BasePart"))
                 if p then
                     Runtime.TaskName = "Moving to Mirage"
-                    TweenTo(p.CFrame * CFrame.new(0, 180, 0))
+                    MoveToCFrame(p.CFrame * CFrame.new(0, 180, 0), false)
                     return
                 end
             end
 
-            -- 5. Sea Events
+            -- 7. Sea Events
             if Config.AutoSeaBeast then
                 local sbFolder = Workspace:FindFirstChild("SeaBeasts")
                 if sbFolder then
@@ -1754,7 +1796,7 @@ task.spawn(function()
                             Runtime.TaskName = "Killing Sea Beast"
                             Runtime.TargetMob = sb
                             Runtime.AimbotPart = sr
-                            TweenTo(sr.CFrame * CFrame.new(0, 220, 0))
+                            MoveToCFrame(sr.CFrame * CFrame.new(0, 220, 0), false)
                             EquipSelectedWeapon("Blox Fruit")
                             FireSkillsNow()
                             return
@@ -1781,7 +1823,7 @@ task.spawn(function()
                 end
             end
 
-            -- 6. Race V4 Lever & Trial
+            -- 8. Race V4 Lever & Trial
             if Config.AutoPullLever and Runtime.CurrentSea == 3 then
                 local map = Workspace:FindFirstChild("Map")
                 local temple = map and map:FindFirstChild("Temple of Time")
@@ -1789,7 +1831,7 @@ task.spawn(function()
                 local p = lever and (lever:FindFirstChild("Part") or lever:FindFirstChildWhichIsA("BasePart"))
                 if p then
                     Runtime.TaskName = "Pulling V4 Lever"
-                    TweenTo(p.CFrame)
+                    MoveToCFrame(p.CFrame, false)
                     if (root.Position - p.Position).Magnitude <= 16 then
                         FireAllInteractables(lever)
                     end
@@ -1807,7 +1849,30 @@ task.spawn(function()
                 end
             end
 
-            -- 7. Sword & Unlock Quests
+            -- 9. Sword & Gun Unlocks (Saber, Bartilo, Rengoku, Yama, Tushita, CDK, Soul Guitar)
+            if Config.AutoCDK and Runtime.CurrentSea == 3 and not HasItem("Cursed Dual Katana") then
+                InvokeCommF("CDKQuest", "Progress", "Good")
+                InvokeCommF("CDKQuest", "Progress", "Evil")
+                InvokeCommF("CDKQuest", "OpenDoor")
+                local cdkBoss = FindLiveEnemy("Cursed Skeleton Boss", false)
+                if cdkBoss then
+                    Runtime.TaskName = "CDK: Cursed Skeleton Boss"
+                    AttackAndHoverMob(cdkBoss, nil)
+                    return
+                end
+            end
+
+            if Config.AutoSoulGuitar and Runtime.CurrentSea == 3 and not HasItem("Soul Guitar") then
+                InvokeCommF("gravestoneEvent", 2)
+                InvokeCommF("GuitarPuzzleProgress", "Check")
+                local livingZombie = FindLiveEnemy("Living Zombie", false)
+                if livingZombie then
+                    Runtime.TaskName = "Soul Guitar: Living Zombies"
+                    AttackAndHoverMob(livingZombie, "Living Zombie")
+                    return
+                end
+            end
+
             if Config.AutoSaber and Runtime.CurrentSea == 1 and not HasItem("Saber") then
                 InvokeCommF("ProQuestProgress", "RichSon")
                 InvokeCommF("ProQuestProgress", "PlaceRelic")
@@ -1818,7 +1883,7 @@ task.spawn(function()
                     return
                 else
                     Runtime.TaskName = "Moving to Saber Expert"
-                    TweenTo(CFrame.new(-1458.89, 29.85, -50.63))
+                    MoveToCFrame(CFrame.new(-1458.89, 29.85, -50.63), false)
                     return
                 end
             end
@@ -1831,7 +1896,7 @@ task.spawn(function()
                         Runtime.TaskName = "Bartilo: Swan Pirates"
                         AttackAndHoverMob(swan, "Swan Pirate")
                     else
-                        TweenTo(CFrame.new(1068.66, 137.61, 1322.10))
+                        MoveToCFrame(CFrame.new(1068.66, 137.61, 1322.10), false)
                     end
                     return
                 elseif prog == 1 then
@@ -1840,7 +1905,7 @@ task.spawn(function()
                         Runtime.TaskName = "Bartilo: Jeremy"
                         AttackAndHoverMob(jeremy, nil)
                     else
-                        TweenTo(CFrame.new(2099.88, 448.93, 853.20))
+                        MoveToCFrame(CFrame.new(2099.88, 448.93, 853.20), false)
                     end
                     return
                 elseif prog == 2 then
@@ -1854,7 +1919,7 @@ task.spawn(function()
                 if HasItem("Hidden Key") then
                     Runtime.TaskName = "Opening Rengoku Chest"
                     EquipSelectedWeapon(nil, "Hidden Key")
-                    TweenTo(CFrame.new(6571.12, 299.23, -6967.84))
+                    MoveToCFrame(CFrame.new(6571.12, 299.23, -6967.84), false)
                     return
                 else
                     local iceMob = FindLiveEnemy({"Awakened Ice Admiral", "Arctic Warrior", "Snow Lurker"}, false)
@@ -1862,7 +1927,7 @@ task.spawn(function()
                         Runtime.TaskName = "Farming Hidden Key"
                         AttackAndHoverMob(iceMob, CleanMobName(iceMob.Name))
                     else
-                        TweenTo(CFrame.new(5667.65, 50.0, -6486.08))
+                        MoveToCFrame(CFrame.new(5667.65, 50.0, -6486.08), false)
                     end
                     return
                 end
@@ -1873,7 +1938,7 @@ task.spawn(function()
                 local sealed = map and map:FindFirstChild("Waterfall") and map.Waterfall:FindFirstChild("SealedKatana")
                 if sealed and sealed:FindFirstChild("Handle") then
                     Runtime.TaskName = "Pulling Yama"
-                    TweenTo(sealed.Handle.CFrame)
+                    MoveToCFrame(sealed.Handle.CFrame, false)
                     FireAllInteractables(sealed)
                     return
                 end
@@ -1888,7 +1953,7 @@ task.spawn(function()
                         if t and t:IsA("BasePart") then
                             Runtime.TaskName = "Tushita Torch " .. tostring(i)
                             EquipSelectedWeapon(nil, "Holy Torch")
-                            TweenTo(t.CFrame)
+                            MoveToCFrame(t.CFrame, false)
                             if (root.Position - t.Position).Magnitude <= 12 then
                                 FireAllInteractables(t)
                             end
@@ -1898,7 +1963,7 @@ task.spawn(function()
                 end
             end
 
-            -- 8. Auto Chest Farm
+            -- 10. Auto Chest Farm
             if Config.AutoFarmChest then
                 local bestChest, minD = nil, math.huge
                 for _, v in ipairs(Workspace:GetDescendants()) do
@@ -1912,7 +1977,7 @@ task.spawn(function()
                 end
                 if bestChest then
                     Runtime.TaskName = "Farming Chest"
-                    TweenTo(bestChest.CFrame)
+                    MoveToCFrame(bestChest.CFrame, false)
                     if (root.Position - bestChest.Position).Magnitude <= 10 then
                         FireAllInteractables(bestChest)
                     end
@@ -1920,7 +1985,7 @@ task.spawn(function()
                 end
             end
 
-            -- 9. Auto Factory & Auto Pirate Raid
+            -- 11. Auto Factory & Auto Pirate Raid
             if Config.AutoFactory and Runtime.CurrentSea == 2 then
                 local core = FindLiveEnemy("Core", false)
                 if core then
@@ -1939,12 +2004,12 @@ task.spawn(function()
                     return
                 elseif (root.Position - castleCF.Position).Magnitude > 600 then
                     Runtime.TaskName = "Moving to Castle Raid"
-                    TweenTo(castleCF)
+                    MoveToCFrame(castleCF, false)
                     return
                 end
             end
 
-            -- 10. Auto Elite Hunter
+            -- 12. Auto Elite Hunter
             if Config.AutoEliteHunter and Runtime.CurrentSea == 3 then
                 local elite = FindLiveEnemy({"Diablo", "Deandre", "Urban"}, false)
                 if elite then
@@ -1960,14 +2025,14 @@ task.spawn(function()
                         local rep = ReplicatedStorage:FindFirstChild(en, true)
                         if rep and rep:IsA("Model") and rep:FindFirstChild("HumanoidRootPart") then
                             Runtime.TaskName = "Streaming Elite: " .. en
-                            TweenTo(rep.HumanoidRootPart.CFrame * CFrame.new(0, Config.FarmDistanceY, 0))
+                            MoveToCFrame(rep.HumanoidRootPart.CFrame * CFrame.new(0, Config.FarmDistanceY, 0), false)
                             return
                         end
                     end
                 end
             end
 
-            -- 11. Auto Cake Prince / Dough King
+            -- 13. Auto Cake Prince / Dough King
             if Config.AutoFarmKatakuri and Runtime.CurrentSea == 3 then
                 local boss = FindLiveEnemy({"Cake Prince", "Dough King"}, false)
                 if boss then
@@ -1985,13 +2050,13 @@ task.spawn(function()
                         AttackAndHoverMob(cakeMob, CleanMobName(cakeMob.Name))
                     else
                         Runtime.TaskName = "Waiting Cake Loaf"
-                        TweenTo(CFrame.new(-2021.32, 65.0, -12028.72))
+                        MoveToCFrame(CFrame.new(-2021.32, 65.0, -12028.72), false)
                     end
                     return
                 end
             end
 
-            -- 12. Auto Bone Farm
+            -- 14. Auto Bone Farm
             if Config.AutoFarmBone and Runtime.CurrentSea == 3 then
                 local boneMob = FindLiveEnemy({"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy", "Possessed Mummy"}, false)
                 if boneMob then
@@ -1999,12 +2064,12 @@ task.spawn(function()
                     AttackAndHoverMob(boneMob, CleanMobName(boneMob.Name))
                 else
                     Runtime.TaskName = "Moving Haunted Castle"
-                    TweenTo(CFrame.new(-9505.87, 172.10, 6158.99))
+                    MoveToCFrame(CFrame.new(-9505.87, 172.10, 6158.99), false)
                 end
                 return
             end
 
-            -- 13. Auto Farm All Bosses (Streams Bosses From ReplicatedStorage + Attacks!)
+            -- 15. Auto Farm All Bosses
             if Config.AutoFarmBosses then
                 local liveBoss, streamCF, bossName = FindAnyBossInServer()
                 if liveBoss then
@@ -2014,26 +2079,27 @@ task.spawn(function()
                 elseif streamCF then
                     Runtime.TaskName = "Streaming Boss: " .. tostring(bossName)
                     Runtime.BringPos = nil
-                    TweenTo(streamCF * CFrame.new(0, Config.FarmDistanceY, 0))
+                    MoveToCFrame(streamCF * CFrame.new(0, Config.FarmDistanceY, 0), false)
                     return
                 else
                     Runtime.TaskName = "Waiting For Boss Spawn"
                 end
             end
 
-            -- 14. Auto Level Farm (Grace-Locked Quest + Stable MobPos Waiting!)
+            -- 16. Auto Level Farm (FIXED: Strictly Checks Quest.Visible & Arrives <= 6 Studs Before Taking Quest!)
             if Config.AutoFarmLevel then
                 local qData = GetQuestForLevel()
                 if qData then
-                    if not HasActiveQuestForBracket(qData) then
-                        Runtime.TaskName = "Taking Quest: " .. qData.QuestName
+                    if not IsQuestVisibleOnScreen(qData) then
+                        Runtime.TaskName = "Moving to Quest: " .. qData.QuestName
                         Runtime.BringPos = nil
-                        TweenTo(qData.QuestPos)
-                        if (root.Position - qData.QuestPos.Position).Magnitude <= 20 and (os.clock() - Runtime.LastStartQuestCall > 2.5) then
+                        MoveToCFrame(qData.QuestPos, false)
+                        -- Wait until we are right next to the Quest NPC (<= 6 studs) before invoking StartQuest!
+                        if (root.Position - qData.QuestPos.Position).Magnitude <= 6 and (os.clock() - Runtime.LastStartQuestCall > 1.2) then
                             Runtime.LastStartQuestCall = os.clock()
+                            task.wait(0.2)
                             InvokeCommF("StartQuest", qData.QuestName, qData.QuestLvl)
                             Runtime.LastAcceptedQuestName = qData.QuestName
-                            Runtime.QuestGraceUntil = os.clock() + 4.0 -- Lock quest state for 4s so player immediately goes to farm mobs!
                         end
                     else
                         local target = FindLiveEnemy(qData.Mob, false)
@@ -2043,14 +2109,14 @@ task.spawn(function()
                         else
                             Runtime.TaskName = "Waiting Mob: " .. qData.Mob
                             Runtime.BringPos = nil
-                            TweenTo(qData.MobPos * CFrame.new(0, 25, 0))
+                            MoveToCFrame(qData.MobPos * CFrame.new(0, 25, 0), false)
                         end
                     end
                 end
                 return
             end
 
-            -- 15. Auto Nearest or Standalone Mastery
+            -- 17. Auto Nearest or Standalone Mastery
             if Config.AutoFarmNearest or Config.AutoFarmMastery then
                 local target = FindLiveEnemy(nil, false)
                 if target then
@@ -2135,7 +2201,7 @@ end)
 -- // 17. Teardown //
 getgenv().OllieBF_Teardown = function()
     SessionActive = false
-    StopTween()
+    StopMove()
     for _, c in ipairs(Connections) do
         pcall(function() c:Disconnect() end)
     end
