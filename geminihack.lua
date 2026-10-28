@@ -1,15 +1,16 @@
--- // BLOX FRUITS V11 — REDZ APEX EDITION (DELTA X / ZERO RUBBERBAND / FIXED QUEST ENGINE) //
--- Fixed: Quest.Visible detection, Smooth Rotation-Preserving Heartbeat Mover, Full Sea 1-2-3 Unlocks & Endgame.
+-- // BLOX FRUITS V12 — REDZ GRAND OVERHAUL (TRUE FRUIT RADAR + PROXY TWEEN + FIXED QUEST) //
+-- Compatible with Delta X (Android / iOS / PC).
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
--- // 1. Services & Safe Executor Shims //
+-- // 1. Services & Executor Shims //
 local cloneref = cloneref or function(o) return o end
 local Players = cloneref(game:GetService("Players"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 local RunService = cloneref(game:GetService("RunService"))
+local TweenService = cloneref(game:GetService("TweenService"))
 local VirtualUser = cloneref(game:GetService("VirtualUser"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local Workspace = cloneref(game:GetService("Workspace"))
@@ -46,7 +47,7 @@ pcall(function()
 end)
 
 -- // 2. Clean Teardown of Previous Session //
-local SuiteName = "OllieBench_RedzV11"
+local SuiteName = "OllieBench_RedzV12"
 if getgenv().OllieBF_Teardown then
     pcall(getgenv().OllieBF_Teardown)
 end
@@ -117,15 +118,15 @@ task.spawn(function()
 end)
 
 -- // 4. Configuration //
-local ConfigFolder = "OllieBench_RedzV11"
+local ConfigFolder = "OllieBench_RedzV12"
 local ConfigFile = ConfigFolder .. "/cfg_" .. tostring(LocalPlayer.UserId) .. ".json"
 
 local Config = {
-    -- Core Weapon & Smooth Speed
+    -- Weapon & Proxy Glide Speed
     SelectedWeapon = "Melee", -- "Melee", "Sword", "Blox Fruit", "Gun"
     MasteryWeapon = "Blox Fruit",
-    FarmDistanceY = 22,
-    TweenSpeed = 275,
+    FarmDistanceY = 20,
+    TweenSpeed = 285,
 
     -- Combat Helpers (ON by default)
     FastAttack = true,
@@ -181,7 +182,7 @@ local Config = {
     AutoTrialV4 = false,
     AutoActivateV4 = false,
 
-    -- Fruit & Raid
+    -- Fruit & Raid (GrabDroppedFruits OFF by default so it only grabs when user wants!)
     AutoRandomFruit = false,
     AutoStoreFruit = true,
     GrabDroppedFruits = false,
@@ -202,10 +203,10 @@ local Config = {
     InfiniteEnergy = true,
     FullBright = false,
 
-    -- ESP
+    -- ESP (ESPFruits ON by default so user sees real fruits on map!)
     ESPPlayers = false,
     ESPBosses = false,
-    ESPFruits = false,
+    ESPFruits = true,
     ESPFlowers = false,
     ESPMirage = false,
     ESPIslands = false,
@@ -213,14 +214,14 @@ local Config = {
 
 local Runtime = {
     TaskName = "Idle",
+    FruitRadarText = "Fruit Radar: Scanning...",
     CurrentSea = 1,
     TargetMob = nil,
     AimbotPart = nil,
     BringPos = nil,
     BringFilter = nil,
-    MoveGoalPos = nil, -- Smooth Heartbeat destination Vector3
-    MoveStopOnArrive = false,
     LastAcceptedQuestName = nil,
+    QuestGraceUntil = 0,
     LastStartQuestCall = 0,
     LastAbandonQuestCall = 0,
 }
@@ -255,9 +256,92 @@ LoadConfig()
 Config.FastAttack = true
 Config.BringMobs = true
 Config.AutoBuso = true
-Config.TweenSpeed = math.clamp(Config.TweenSpeed, 180, 325)
+Config.TweenSpeed = math.clamp(Config.TweenSpeed, 180, 330)
 
--- // 5. Sea Detection & Complete Boss + Quest Databases //
+-- // 5. True Devil Fruit Detector & Exact Fruit Name Resolver (FIXES FAKE FRUIT BUG!) //
+local KnownFruitNames = {
+    "Rocket", "Spin", "Blade", "Chop", "Spring", "Bomb", "Smoke", "Spike",
+    "Flame", "Falcon", "Ice", "Sand", "Dark", "Diamond", "Light", "Rubber",
+    "Barrier", "Ghost", "Magma", "Quake", "Buddha", "Love", "Spider", "Sound",
+    "Phoenix", "Portal", "Rumble", "Pain", "Blizzard", "Gravity", "Mammoth",
+    "T-Rex", "Dough", "Shadow", "Venom", "Control", "Gas", "Spirit", "Leopard",
+    "Yeti", "Kitsune", "Dragon"
+}
+
+-- Strictly verifies if an object in Workspace is an actual collectable Devil Fruit!
+local function InspectDroppedOrSpawnedFruit(obj)
+    if not obj or not obj.Parent or obj.Parent ~= Workspace then
+        return false, nil, nil
+    end
+
+    -- Never match a player character or NPC
+    if Players:GetPlayerFromCharacter(obj) or obj:FindFirstChildOfClass("Humanoid") then
+        return false, nil, nil
+    end
+
+    -- Case 1: Dropped Fruit Tool (e.g., "Light Fruit", "Dough Fruit")
+    if obj:IsA("Tool") then
+        local handle = obj:FindFirstChild("Handle")
+        if handle and handle:IsA("BasePart") and (handle:FindFirstChildOfClass("TouchTransmitter") or handle:FindFirstChild("TouchInterest")) then
+            local orig = obj:GetAttribute("OriginalName")
+            if orig or string.find(obj.Name, "Fruit", 1, true) or obj:FindFirstChild("Fruit") then
+                local displayName = obj.Name
+                if displayName == "Fruit" or displayName == "Fruit " then
+                    displayName = tostring(orig or "Unknown Fruit")
+                end
+                return true, handle, displayName
+            end
+        end
+        return false, nil, nil
+    end
+
+    -- Case 2: Natural Tree-Spawned Fruit Model (In Blox Fruits, natural fruits are Models named "Fruit " with Handle + Fruit children)
+    if obj:IsA("Model") and (obj.Name == "Fruit " or obj.Name == "Fruit") then
+        local handle = obj:FindFirstChild("Handle")
+        if handle and handle:IsA("BasePart") and (handle:FindFirstChildOfClass("TouchTransmitter") or handle:FindFirstChild("TouchInterest")) then
+            local resolvedName = obj:GetAttribute("OriginalName") or obj:GetAttribute("FruitName")
+            if not resolvedName then
+                -- Inspect children/descendants for known fruit name or mesh cues
+                for _, desc in ipairs(obj:GetDescendants()) do
+                    local dName = desc.Name
+                    for _, kFruit in ipairs(KnownFruitNames) do
+                        if string.find(string.lower(dName), string.lower(kFruit), 1, true) then
+                            resolvedName = kFruit .. " Fruit (Spawned)"
+                            break
+                        end
+                    end
+                    if resolvedName then break end
+                end
+            end
+            if not resolvedName then
+                resolvedName = "Spawned Devil Fruit"
+            end
+            return true, handle, resolvedName
+        end
+    end
+
+    return false, nil, nil
+end
+
+local function ScanAllRealFruitsOnMap(rootPos)
+    local results = {}
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        local isReal, handle, fruitName = InspectDroppedOrSpawnedFruit(obj)
+        if isReal and handle then
+            local dist = rootPos and math.floor((handle.Position - rootPos).Magnitude) or 0
+            table.insert(results, {
+                Instance = obj,
+                Handle = handle,
+                Name = fruitName,
+                Distance = dist,
+            })
+        end
+    end
+    table.sort(results, function(a, b) return a.Distance < b.Distance end)
+    return results
+end
+
+-- // 6. Sea Detection & Complete Boss + Quest Databases //
 local function DetectSea()
     local pid = game.PlaceId
     if pid == 2753915549 then
@@ -468,7 +552,7 @@ local IslandLocations = {
     }
 }
 
--- // 6. Rotation-Preserving Smooth Heartbeat Mover (Zero Snap / Zero Rubberband) //
+-- // 7. Redz Proxy CFrameValue Tween Engine (Butter-Smooth Glide, Zero Physics Fight!) //
 TrackConn(LocalPlayer.Idled, function()
     if Config.AntiAFK then
         pcall(function()
@@ -507,13 +591,25 @@ local function CleanMobName(rawName)
     return string.gsub(s, "^%s*(.-)%s*$", "%1")
 end
 
+-- Proxy CFrameValue holder
+local ProxyCF = Instance.new("CFrameValue")
+local ProxyTween = nil
+local ProxyActive = false
+local ProxyGoalPos = nil
+local ProxyStopOnArrive = false
+
 local function StopMove()
-    Runtime.MoveGoalPos = nil
-    Runtime.MoveStopOnArrive = false
+    ProxyActive = false
+    ProxyGoalPos = nil
+    ProxyStopOnArrive = false
     Runtime.BringPos = nil
+    if ProxyTween then
+        pcall(function() ProxyTween:Cancel() end)
+        ProxyTween = nil
+    end
     local root = GetRoot()
     if root then
-        local bv = root:FindFirstChild("RedzV11_BV")
+        local bv = root:FindFirstChild("RedzV12_BV")
         if bv then bv:Destroy() end
     end
 end
@@ -523,30 +619,68 @@ local function MoveToCFrame(targetCF, stopOnArrive)
         StopMove()
         return
     end
-    Runtime.MoveGoalPos = targetCF.Position
-    Runtime.MoveStopOnArrive = (stopOnArrive == true)
+    local root = GetRoot()
+    local hum = GetHum()
+    if not root or not hum or hum.Health <= 0 then return end
+
+    if hum.Sit then hum.Sit = false end
+
+    local destPos = targetCF.Position
+    local dist = (root.Position - destPos).Magnitude
+    ProxyStopOnArrive = (stopOnArrive == true)
+
+    -- Already right on target
+    if dist <= 3.0 then
+        if ProxyTween then
+            pcall(function() ProxyTween:Cancel() end)
+            ProxyTween = nil
+        end
+        ProxyGoalPos = destPos
+        ProxyCF.Value = CFrame.new(destPos)
+        ProxyActive = not ProxyStopOnArrive
+        return
+    end
+
+    -- Don't restart ProxyTween if goal shifted less than 6 studs
+    if ProxyActive and ProxyGoalPos and (ProxyGoalPos - destPos).Magnitude < 6.0 and ProxyTween then
+        return
+    end
+
+    if not ProxyActive then
+        ProxyCF.Value = CFrame.new(root.Position)
+    else
+        ProxyCF.Value = CFrame.new(root.Position)
+    end
+
+    if ProxyTween then
+        pcall(function() ProxyTween:Cancel() end)
+    end
+
+    ProxyGoalPos = destPos
+    ProxyActive = true
+    local speed = math.clamp(Config.TweenSpeed, 180, 330)
+    local duration = math.max(0.05, dist / speed)
+    ProxyTween = TweenService:Create(ProxyCF, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Value = CFrame.new(destPos)})
+    ProxyTween:Play()
 end
 
--- Runs every physics frame: interpolates position smoothly while preserving character rotation!
-TrackConn(RunService.Heartbeat, function(dt)
+-- Syncs character root to ProxyCF every frame while preserving character rotation!
+TrackConn(RunService.Heartbeat, function()
     pcall(function()
-        local goalPos = Runtime.MoveGoalPos
         local root = GetRoot()
         local hum = GetHum()
-        if not goalPos or not root or not hum or hum.Health <= 0 then
+        if not ProxyActive or not root or not hum or hum.Health <= 0 then
             if root then
-                local bv = root:FindFirstChild("RedzV11_BV")
+                local bv = root:FindFirstChild("RedzV12_BV")
                 if bv then bv:Destroy() end
             end
             return
         end
 
-        if hum.Sit then hum.Sit = false end
-
-        local bv = root:FindFirstChild("RedzV11_BV")
+        local bv = root:FindFirstChild("RedzV12_BV")
         if not bv then
             bv = Instance.new("BodyVelocity")
-            bv.Name = "RedzV11_BV"
+            bv.Name = "RedzV12_BV"
             bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             bv.Velocity = Vector3.zero
             bv.Parent = root
@@ -555,29 +689,17 @@ TrackConn(RunService.Heartbeat, function(dt)
         root.AssemblyLinearVelocity = Vector3.zero
         root.AssemblyAngularVelocity = Vector3.zero
 
-        local curPos = root.Position
-        local rot = root.CFrame - curPos
-        local diff = goalPos - curPos
-        local dist = diff.Magnitude
-
-        if dist <= 1.5 then
-            root.CFrame = CFrame.new(goalPos) * rot
-            if Runtime.MoveStopOnArrive then
-                Runtime.MoveGoalPos = nil
-                Runtime.MoveStopOnArrive = false
-                bv:Destroy()
-            end
-            return
-        end
-
-        local speed = math.clamp(Config.TweenSpeed, 180, 325)
-        local step = math.min(dist, speed * dt)
-        local nextPos = curPos + (diff.Unit * step)
+        local rot = root.CFrame - root.Position
+        local nextPos = ProxyCF.Value.Position
         root.CFrame = CFrame.new(nextPos) * rot
+
+        if ProxyGoalPos and (root.Position - ProxyGoalPos).Magnitude <= 2.5 and ProxyStopOnArrive then
+            StopMove()
+        end
     end)
 end)
 
--- // 7. Multi-Language Weapon Equip (EN & VN) //
+-- // 8. Multi-Language Weapon Equip (EN & VN) //
 local ToolCategoryMatchers = {
     ["Melee"] = {"melee", "cận chiến", "combat", "black leg", "electro", "fishman karate", "dragon breath", "superhuman", "death step", "sharkman karate", "electric claw", "dragon talon", "godhuman", "sanguine art"},
     ["Sword"] = {"sword", "kiếm", "katana", "cutlass", "saber", "rengoku", "yama", "tushita", "cursed dual katana", "hallow scythe", "dark blade", "shark anchor"},
@@ -675,7 +797,7 @@ local function FireSkillsNow()
     end)
 end
 
--- // 8. Triple-Path Redz FastAttack //
+-- // 9. Triple-Path Redz FastAttack //
 local CombatFrameworkUpval = nil
 pcall(function()
     if raw_getupvalues then
@@ -785,7 +907,7 @@ task.spawn(function()
     end
 end)
 
--- // 9. Stepped Physics: SimulationRadius, NoClip & PosLock BringMobs //
+-- // 10. Stepped Physics: SimulationRadius, NoClip & PosLock BringMobs //
 TrackConn(RunService.Stepped, function()
     pcall(function()
         local char = GetChar()
@@ -795,7 +917,7 @@ TrackConn(RunService.Stepped, function()
             raw_sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
         end
 
-        local anyActive = Config.NoClip or (Runtime.MoveGoalPos ~= nil) or (Runtime.TargetMob ~= nil)
+        local anyActive = Config.NoClip or ProxyActive or (Runtime.TargetMob ~= nil)
             or Config.AutoFarmLevel or Config.AutoFarmNearest or Config.AutoFarmBosses
             or Config.AutoFarmChest or Config.AutoFarmBone or Config.AutoFarmKatakuri or Config.AutoRaidDungeon
         if anyActive and char then
@@ -855,7 +977,7 @@ TrackConn(RunService.Stepped, function()
     end)
 end)
 
--- // 10. Silent Aim Hook //
+-- // 11. Silent Aim Hook //
 getgenv().OllieBF_SilentAimHandler = function(self, ...)
     if not Config.SilentAim or not Runtime.AimbotPart or not Runtime.AimbotPart.Parent then
         return false, nil
@@ -884,8 +1006,8 @@ getgenv().OllieBF_SilentAimHandler = function(self, ...)
 end
 
 pcall(function()
-    if raw_hookmetamethod and raw_getnamecallmethod and not getgenv().OllieBF_V11Hooked then
-        getgenv().OllieBF_V11Hooked = true
+    if raw_hookmetamethod and raw_getnamecallmethod and not getgenv().OllieBF_V12Hooked then
+        getgenv().OllieBF_V12Hooked = true
         local oldNamecall
         oldNamecall = raw_hookmetamethod(game, "__namecall", raw_newcclosure(function(self, ...)
             if not raw_checkcaller() and getgenv().OllieBF_SilentAimHandler then
@@ -899,7 +1021,7 @@ pcall(function()
     end
 end)
 
--- // 11. FIXED Quest Checker (Strictly Checks PlayerGui.Main.Quest.Visible!) & Boss Scanner //
+-- // 12. Dual-Verified Quest Engine (25-Stud Trigger + Title & Visibility Check!) //
 local function GetQuestForLevel()
     local lvl = GetLevel()
     local list = QuestDatabase[Runtime.CurrentSea]
@@ -914,8 +1036,12 @@ local function GetQuestForLevel()
     return chosen
 end
 
--- THE CRITICAL V11 FIX: Never check container.Visible (which is always true)! Only check qFrame.Visible!
-local function IsQuestVisibleOnScreen(qData)
+local function HasActiveQuestOnUI(qData)
+    -- 3-second grace window immediately after invoking StartQuest so player moves straight to mobs
+    if Runtime.LastAcceptedQuestName == qData.QuestName and os.clock() < Runtime.QuestGraceUntil then
+        return true
+    end
+
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     local main = pgui and pgui:FindFirstChild("Main")
     local qFrame = main and main:FindFirstChild("Quest")
@@ -923,7 +1049,15 @@ local function IsQuestVisibleOnScreen(qData)
         return false
     end
 
-    -- If we leveled up into a new QuestName bracket while holding an old quest, abandon the old quest once
+    -- Verify Title text is non-empty
+    local titleLbl = qFrame:FindFirstChild("Container")
+        and qFrame.Container:FindFirstChild("QuestTitle")
+        and qFrame.Container.QuestTitle:FindFirstChild("Title")
+    if titleLbl and type(titleLbl.Text) == "string" and #titleLbl.Text < 3 then
+        return false
+    end
+
+    -- If player leveled up into a new QuestName bracket while holding an old quest, abandon old quest
     if Runtime.LastAcceptedQuestName and Runtime.LastAcceptedQuestName ~= qData.QuestName then
         if os.clock() - Runtime.LastAbandonQuestCall > 3.0 then
             Runtime.LastAbandonQuestCall = os.clock()
@@ -1057,11 +1191,12 @@ local function FireAllInteractables(inst)
     end
 end
 
--- // 12. ESP System //
+-- // 13. ESP System (Shows True Fruit Names on Map!) //
 local ESPFolder = Instance.new("Folder")
 ESPFolder.Name = SuiteName .. "_ESP"
 ESPFolder.Parent = GuiParent
 local ESPPool = {}
+local FruitRadarBanner = nil
 
 local function UpsertESP(key, part, text, col, seen)
     if not part or not part.Parent then return end
@@ -1069,7 +1204,7 @@ local function UpsertESP(key, part, text, col, seen)
     local entry = ESPPool[key]
     if not entry or not entry.Gui.Parent then
         local bb = Instance.new("BillboardGui")
-        bb.Size = UDim2.new(0, 220, 0, 36)
+        bb.Size = UDim2.new(0, 240, 0, 38)
         bb.AlwaysOnTop = true
         bb.Adornee = part
         bb.Parent = ESPFolder
@@ -1089,10 +1224,33 @@ local function UpsertESP(key, part, text, col, seen)
     entry.Label.TextColor3 = col
 end
 
-local function RefreshESP()
+local function RefreshESPAndRadar()
     local root = GetRoot()
     if not root then return end
     local seen = {}
+
+    -- Always scan real fruits for the UI Radar Banner & ESPFruits
+    local realFruits = ScanAllRealFruitsOnMap(root.Position)
+    if #realFruits > 0 then
+        local names = {}
+        for i = 1, math.min(3, #realFruits) do
+            local f = realFruits[i]
+            table.insert(names, string.format("%s (%dm)", f.Name, f.Distance))
+        end
+        Runtime.FruitRadarText = "Fruit Radar [" .. tostring(#realFruits) .. "]: " .. table.concat(names, " | ")
+    else
+        Runtime.FruitRadarText = "Fruit Radar: Không có trái nào đang rơi trên Map"
+    end
+    if FruitRadarBanner then
+        FruitRadarBanner.Text = Runtime.FruitRadarText
+        FruitRadarBanner.TextColor3 = (#realFruits > 0) and Color3.fromRGB(115, 255, 130) or Color3.fromRGB(190, 185, 195)
+    end
+
+    if Config.ESPFruits then
+        for _, f in ipairs(realFruits) do
+            UpsertESP(f.Instance, f.Handle, string.format("[TRÁI] %s (%dm)", f.Name, f.Distance), Color3.fromRGB(110, 255, 120), seen)
+        end
+    end
 
     if Config.ESPPlayers then
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -1114,18 +1272,6 @@ local function RefreshESP()
                 if mr and mh and mh.Health > 0 and (mob:FindFirstChild("Boss") or mh.MaxHealth >= 100000 or string.find(mob.Name, "Boss")) then
                     local d = math.floor((mr.Position - root.Position).Magnitude)
                     UpsertESP(mob, mr, string.format("[BOSS] %s (%dm)", CleanMobName(mob.Name), d), Color3.fromRGB(255, 165, 40), seen)
-                end
-            end
-        end
-    end
-
-    if Config.ESPFruits then
-        for _, obj in ipairs(Workspace:GetChildren()) do
-            if (obj:IsA("Tool") or obj:IsA("Model")) and (string.find(obj.Name, "Fruit") or obj:GetAttribute("OriginalName")) then
-                local h = obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")
-                if h then
-                    local d = math.floor((h.Position - root.Position).Magnitude)
-                    UpsertESP(obj, h, string.format("[FRUIT] %s (%dm)", obj.Name, d), Color3.fromRGB(110, 255, 110), seen)
                 end
             end
         end
@@ -1163,7 +1309,7 @@ local function RefreshESP()
     end
 end
 
--- // 13. Redz V11 Crimson-Dark UI //
+-- // 14. Redz V12 Crimson-Dark UI + Live Fruit Radar Bar //
 local function MakeDraggable(handle, frame)
     local dragging, activeInput, dragStart, startPos = false, nil, nil, nil
     TrackConn(handle.InputBegan, function(input)
@@ -1195,17 +1341,17 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GuiParent
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 680, 0, 430)
-MainFrame.Position = UDim2.new(0.5, -340, 0.5, -215)
+MainFrame.Size = UDim2.new(0, 690, 0, 455)
+MainFrame.Position = UDim2.new(0.5, -345, 0.5, -227)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 16)
 MainFrame.BorderSizePixel = 0
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(225, 45, 60)
+MainStroke.Color = Color3.fromRGB(230, 45, 60)
 MainStroke.Thickness = 1.8
 
 local Header = Instance.new("Frame", MainFrame)
-Header.Size = UDim2.new(1, 0, 0, 38)
+Header.Size = UDim2.new(1, 0, 0, 36)
 Header.BackgroundColor3 = Color3.fromRGB(24, 16, 20)
 Header.BorderSizePixel = 0
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
@@ -1219,7 +1365,7 @@ HeaderTitle.Font = Enum.Font.GothamBold
 HeaderTitle.TextSize = 13
 HeaderTitle.TextColor3 = Color3.fromRGB(255, 65, 80)
 HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-HeaderTitle.Text = string.format("REDZ V11 APEX // [SEA %d]", Runtime.CurrentSea)
+HeaderTitle.Text = string.format("REDZ V12 GRAND OVERHAUL // [SEA %d]", Runtime.CurrentSea)
 
 local StatusLabel = Instance.new("TextLabel", Header)
 StatusLabel.Size = UDim2.new(0.45, -75, 1, 0)
@@ -1233,13 +1379,31 @@ StatusLabel.Text = "Task: Idle"
 
 local HideBtn = Instance.new("TextButton", Header)
 HideBtn.Size = UDim2.new(0, 60, 0, 24)
-HideBtn.Position = UDim2.new(1, -68, 0, 7)
+HideBtn.Position = UDim2.new(1, -68, 0, 6)
 HideBtn.BackgroundColor3 = Color3.fromRGB(195, 35, 50)
 HideBtn.Font = Enum.Font.GothamBold
 HideBtn.TextSize = 11
 HideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 HideBtn.Text = "HIDE"
 Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
+
+-- Live Fruit Radar Sub-Banner right under the Header!
+local RadarBar = Instance.new("Frame", MainFrame)
+RadarBar.Size = UDim2.new(1, -16, 0, 24)
+RadarBar.Position = UDim2.new(0, 8, 0, 40)
+RadarBar.BackgroundColor3 = Color3.fromRGB(22, 18, 25)
+RadarBar.BorderSizePixel = 0
+Instance.new("UICorner", RadarBar).CornerRadius = UDim.new(0, 5)
+
+FruitRadarBanner = Instance.new("TextLabel", RadarBar)
+FruitRadarBanner.Size = UDim2.new(1, -16, 1, 0)
+FruitRadarBanner.Position = UDim2.new(0, 8, 0, 0)
+FruitRadarBanner.BackgroundTransparency = 1
+FruitRadarBanner.Font = Enum.Font.Code
+FruitRadarBanner.TextSize = 11
+FruitRadarBanner.TextColor3 = Color3.fromRGB(190, 185, 195)
+FruitRadarBanner.TextXAlignment = Enum.TextXAlignment.Left
+FruitRadarBanner.Text = Runtime.FruitRadarText
 
 local FloatBtn = Instance.new("TextButton", ScreenGui)
 FloatBtn.Size = UDim2.new(0, 52, 0, 52)
@@ -1251,7 +1415,7 @@ FloatBtn.TextColor3 = Color3.fromRGB(235, 50, 65)
 FloatBtn.Text = "REDZ"
 Instance.new("UICorner", FloatBtn).CornerRadius = UDim.new(1, 0)
 local FloatStroke = Instance.new("UIStroke", FloatBtn)
-FloatStroke.Color = Color3.fromRGB(225, 45, 60)
+FloatStroke.Color = Color3.fromRGB(230, 45, 60)
 FloatStroke.Thickness = 2
 MakeDraggable(FloatBtn, FloatBtn)
 
@@ -1260,8 +1424,8 @@ TrackConn(HideBtn.MouseButton1Click, ToggleUI)
 TrackConn(FloatBtn.MouseButton1Click, ToggleUI)
 
 local Sidebar = Instance.new("ScrollingFrame", MainFrame)
-Sidebar.Size = UDim2.new(0, 155, 1, -48)
-Sidebar.Position = UDim2.new(0, 8, 0, 42)
+Sidebar.Size = UDim2.new(0, 155, 1, -76)
+Sidebar.Position = UDim2.new(0, 8, 0, 68)
 Sidebar.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 Sidebar.BorderSizePixel = 0
 Sidebar.ScrollBarThickness = 2
@@ -1291,8 +1455,8 @@ local function CreateTab(name)
     table.insert(TabButtons, Btn)
 
     local Page = Instance.new("ScrollingFrame", PagesHolder)
-    Page.Size = UDim2.new(1, -176, 1, -48)
-    Page.Position = UDim2.new(0, 168, 0, 42)
+    Page.Size = UDim2.new(1, -176, 1, -76)
+    Page.Position = UDim2.new(0, 168, 0, 68)
     Page.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
     Page.BorderSizePixel = 0
     Page.ScrollBarThickness = 4
@@ -1428,7 +1592,7 @@ local function AddButton(page, text, fn)
     end)
 end
 
--- // 14. Build All 7 Tabs //
+-- // 15. Build All 7 Tabs //
 local TabFarm, FirstBtn = CreateTab("Main Farm")
 local TabQuests = CreateTab("Quests & Items")
 local TabSea = CreateTab("Sea Event & V4")
@@ -1442,12 +1606,12 @@ FirstBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TabFarm.Visible = true
 
 -- Tab 1: Main Farm
-AddSection(TabFarm, "Weapon & Smooth Glide Speed")
+AddSection(TabFarm, "Weapon & Proxy CFrameValue Glide")
 AddCycle(TabFarm, "Select Weapon", {"Melee", "Sword", "Blox Fruit", "Gun"}, "SelectedWeapon")
-AddCycle(TabFarm, "Hover Distance Y", {18, 22, 26, 32, 40}, "FarmDistanceY")
-AddCycle(TabFarm, "Glide Speed", {225, 250, 275, 300, 325}, "TweenSpeed")
+AddCycle(TabFarm, "Hover Distance Y", {18, 20, 25, 30, 38}, "FarmDistanceY")
+AddCycle(TabFarm, "Glide Speed", {240, 265, 285, 310, 330}, "TweenSpeed")
 AddSection(TabFarm, "Auto Farm Level & Bosses")
-AddToggle(TabFarm, "Auto Farm Level (Fixed Quest.Visible Check!)", "AutoFarmLevel", true)
+AddToggle(TabFarm, "Auto Farm Level (25-Stud Quest Trigger!)", "AutoFarmLevel", true)
 AddToggle(TabFarm, "Auto Farm Nearest Mob", "AutoFarmNearest", true)
 AddToggle(TabFarm, "Auto Farm All Bosses (Streams From Server)", "AutoFarmBosses", true)
 
@@ -1482,7 +1646,7 @@ AddToggle(TabQuests, "Auto Bartilo Quest (Sea 2)", "AutoBartilo", true)
 AddToggle(TabQuests, "Auto Rengoku Sword (Sea 2)", "AutoRengoku", true)
 AddToggle(TabQuests, "Auto Pull Yama (Sea 3)", "AutoYama", true)
 AddToggle(TabQuests, "Auto Tushita Torches (Sea 3)", "AutoTushita", true)
-AddToggle(TabQuests, "Auto Cursed Dual Katana (CDK Pedestals)", "AutoCDK", true)
+AddToggle(TabQuests, "Auto Cursed Dual Katana (CDK)", "AutoCDK", true)
 AddToggle(TabQuests, "Auto Soul Guitar Puzzle (Sea 3)", "AutoSoulGuitar", true)
 AddSection(TabQuests, "Fruit & Gun Mastery")
 AddToggle(TabQuests, "Auto Farm Mastery", "AutoFarmMastery", true)
@@ -1511,10 +1675,11 @@ AddButton(TabSea, "Glide -> Temple of Time", function()
 end)
 
 -- Tab 4: Fruit & Raid Dungeon
-AddSection(TabFruitRaid, "Devil Fruits")
+AddSection(TabFruitRaid, "Devil Fruits (True Fruit Filter + Name Display)")
+AddToggle(TabFruitRaid, "ESP Devil Fruits (Shows Exact Fruit Name)", "ESPFruits", false, RefreshESPAndRadar)
 AddToggle(TabFruitRaid, "Auto Random Fruit (Gacha)", "AutoRandomFruit", false)
 AddToggle(TabFruitRaid, "Auto Store Fruits in Inventory", "AutoStoreFruit", false)
-AddToggle(TabFruitRaid, "Teleport Grab Dropped Fruits", "GrabDroppedFruits", true)
+AddToggle(TabFruitRaid, "Auto Glide & Grab Real Dropped Fruits", "GrabDroppedFruits", true)
 AddCycle(TabFruitRaid, "Sniper Fruit", {
     "Kitsune-Kitsune", "Dragon-Dragon", "Leopard-Leopard", "Dough-Dough",
     "T-Rex-T-Rex", "Mammoth-Mammoth", "Portal-Portal", "Buddha-Buddha", "Magma-Magma", "Light-Light"
@@ -1561,7 +1726,7 @@ AddSection(TabTeleport, "Cross-Sea Travel")
 AddButton(TabTeleport, "Travel -> First Sea", function() InvokeCommF("TravelMain") end)
 AddButton(TabTeleport, "Travel -> Second Sea", function() InvokeCommF("TravelDressrosa") end)
 AddButton(TabTeleport, "Travel -> Third Sea", function() InvokeCommF("TravelZou") end)
-AddSection(TabTeleport, "Islands (Smooth Glide)")
+AddSection(TabTeleport, "Islands (Smooth Proxy Glide)")
 for name, cf in pairs(IslandLocations[Runtime.CurrentSea] or {}) do
     AddButton(TabTeleport, "Glide -> " .. name, function()
         Runtime.TaskName = "Teleport: " .. name
@@ -1572,12 +1737,12 @@ AddButton(TabTeleport, "Stop Active Movement", StopMove)
 
 -- Tab 7: ESP & Settings
 AddSection(TabMisc, "ESP")
-AddToggle(TabMisc, "ESP Players", "ESPPlayers", false, RefreshESP)
-AddToggle(TabMisc, "ESP Bosses", "ESPBosses", false, RefreshESP)
-AddToggle(TabMisc, "ESP Devil Fruits", "ESPFruits", false, RefreshESP)
-AddToggle(TabMisc, "ESP Flowers", "ESPFlowers", false, RefreshESP)
-AddToggle(TabMisc, "ESP Mirage / Kitsune / Prehistoric", "ESPMirage", false, RefreshESP)
-AddToggle(TabMisc, "ESP All Islands", "ESPIslands", false, RefreshESP)
+AddToggle(TabMisc, "ESP Players", "ESPPlayers", false, RefreshESPAndRadar)
+AddToggle(TabMisc, "ESP Bosses", "ESPBosses", false, RefreshESPAndRadar)
+AddToggle(TabMisc, "ESP Devil Fruits (True Name)", "ESPFruits", false, RefreshESPAndRadar)
+AddToggle(TabMisc, "ESP Flowers", "ESPFlowers", false, RefreshESPAndRadar)
+AddToggle(TabMisc, "ESP Mirage / Kitsune / Prehistoric", "ESPMirage", false, RefreshESPAndRadar)
+AddToggle(TabMisc, "ESP All Islands", "ESPIslands", false, RefreshESPAndRadar)
 AddSection(TabMisc, "Character & Visuals")
 AddToggle(TabMisc, "Silent Aimbot Skills", "SilentAim", false)
 AddToggle(TabMisc, "Walk On Water", "WalkOnWater", false)
@@ -1587,6 +1752,7 @@ AddToggle(TabMisc, "FullBright", "FullBright", false)
 AddButton(TabMisc, "Force Abandon Current Quest", function()
     InvokeCommF("AbandonQuest")
     Runtime.LastAcceptedQuestName = nil
+    Runtime.QuestGraceUntil = 0
 end)
 AddButton(TabMisc, "FPS Boost (SmoothPlastic)", function()
     Lighting.GlobalShadows = false
@@ -1598,7 +1764,7 @@ AddButton(TabMisc, "FPS Boost (SmoothPlastic)", function()
     end
 end)
 
--- // 15. Primary Redz V11 Automation Loop //
+-- // 16. Primary Redz V12 Automation Loop //
 local LastCakeSpawn = 0
 local LastEliteCheck = 0
 
@@ -1630,20 +1796,17 @@ task.spawn(function()
                 end
             end
 
-            -- 1. Grab Dropped Devil Fruits
+            -- 1. Grab REAL Dropped / Spawned Devil Fruits (Never triggers on fake map objects!)
             if Config.GrabDroppedFruits then
-                for _, obj in ipairs(Workspace:GetChildren()) do
-                    if (obj:IsA("Tool") or obj:IsA("Model")) and string.find(obj.Name, "Fruit") then
-                        local h = obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")
-                        if h then
-                            Runtime.TaskName = "Grabbing " .. obj.Name
-                            MoveToCFrame(h.CFrame, false)
-                            if (root.Position - h.Position).Magnitude <= 15 then
-                                FireAllInteractables(obj)
-                            end
-                            return
-                        end
+                local realFruits = ScanAllRealFruitsOnMap(root.Position)
+                if #realFruits > 0 then
+                    local f = realFruits[1]
+                    Runtime.TaskName = "Nhặt Trái: " .. tostring(f.Name)
+                    MoveToCFrame(f.Handle.CFrame, false)
+                    if (root.Position - f.Handle.Position).Magnitude <= 15 then
+                        FireAllInteractables(f.Instance)
                     end
+                    return
                 end
             end
 
@@ -1849,7 +2012,7 @@ task.spawn(function()
                 end
             end
 
-            -- 9. Sword & Gun Unlocks (Saber, Bartilo, Rengoku, Yama, Tushita, CDK, Soul Guitar)
+            -- 9. Sword & Gun Unlocks
             if Config.AutoCDK and Runtime.CurrentSea == 3 and not HasItem("Cursed Dual Katana") then
                 InvokeCommF("CDKQuest", "Progress", "Good")
                 InvokeCommF("CDKQuest", "Progress", "Evil")
@@ -2086,20 +2249,20 @@ task.spawn(function()
                 end
             end
 
-            -- 16. Auto Level Farm (FIXED: Strictly Checks Quest.Visible & Arrives <= 6 Studs Before Taking Quest!)
+            -- 16. Auto Level Farm (FIXED: 25-Stud Quest Trigger + Grace Window + Proxy Glide!)
             if Config.AutoFarmLevel then
                 local qData = GetQuestForLevel()
                 if qData then
-                    if not IsQuestVisibleOnScreen(qData) then
-                        Runtime.TaskName = "Moving to Quest: " .. qData.QuestName
+                    if not HasActiveQuestOnUI(qData) then
+                        Runtime.TaskName = "Nhận Quest: " .. qData.QuestName
                         Runtime.BringPos = nil
-                        MoveToCFrame(qData.QuestPos, false)
-                        -- Wait until we are right next to the Quest NPC (<= 6 studs) before invoking StartQuest!
-                        if (root.Position - qData.QuestPos.Position).Magnitude <= 6 and (os.clock() - Runtime.LastStartQuestCall > 1.2) then
+                        -- Hover 3 studs above QuestPos so player never clips into floor/table
+                        MoveToCFrame(qData.QuestPos * CFrame.new(0, 3, 0), false)
+                        if (root.Position - qData.QuestPos.Position).Magnitude <= 25 and (os.clock() - Runtime.LastStartQuestCall > 1.2) then
                             Runtime.LastStartQuestCall = os.clock()
-                            task.wait(0.2)
                             InvokeCommF("StartQuest", qData.QuestName, qData.QuestLvl)
                             Runtime.LastAcceptedQuestName = qData.QuestName
+                            Runtime.QuestGraceUntil = os.clock() + 3.0
                         end
                     else
                         local target = FindLiveEnemy(qData.Mob, false)
@@ -2107,9 +2270,9 @@ task.spawn(function()
                             Runtime.TaskName = "Farming: " .. qData.Mob
                             AttackAndHoverMob(target, qData.Mob)
                         else
-                            Runtime.TaskName = "Waiting Mob: " .. qData.Mob
+                            Runtime.TaskName = "Đợi Quái: " .. qData.Mob
                             Runtime.BringPos = nil
-                            MoveToCFrame(qData.MobPos * CFrame.new(0, 25, 0), false)
+                            MoveToCFrame(qData.MobPos * CFrame.new(0, 22, 0), false)
                         end
                     end
                 end
@@ -2132,11 +2295,13 @@ task.spawn(function()
     end
 end)
 
--- // 16. Background Services //
+-- // 17. Background Services & Live Fruit Radar Updater //
 task.spawn(function()
     while SessionActive and ScreenGui.Parent do
         task.wait(1.0)
         pcall(function()
+            RefreshESPAndRadar()
+
             if Config.AutoStats then
                 local pts = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
                 if pts and pts.Value > 0 then
@@ -2185,23 +2350,15 @@ task.spawn(function()
                 InvokeCommF("Awakener", "Check")
                 InvokeCommF("Awakener", "Awaken")
             end
-
-            if Config.ESPPlayers or Config.ESPBosses or Config.ESPFruits or Config.ESPFlowers or Config.ESPMirage or Config.ESPIslands then
-                RefreshESP()
-            else
-                for k, entry in pairs(ESPPool) do
-                    pcall(function() entry.Gui:Destroy() end)
-                    ESPPool[k] = nil
-                end
-            end
         end)
     end
 end)
 
--- // 17. Teardown //
+-- // 18. Teardown //
 getgenv().OllieBF_Teardown = function()
     SessionActive = false
     StopMove()
+    ProxyCF:Destroy()
     for _, c in ipairs(Connections) do
         pcall(function() c:Disconnect() end)
     end
