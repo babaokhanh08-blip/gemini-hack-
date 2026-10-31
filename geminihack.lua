@@ -1,2727 +1,2108 @@
--- ============================================================================
--- BLOX FRUITS — REDZ HUB V16 (CLEAN DECOMPILED & UPGRADED SOURCE)
--- 100% Un-obfuscated | Zero Image Assets (Text-Only UI) | Delta X Compatible
--- ============================================================================
+--[[
+    ✦ ASTRA HUB | Blox Fruits | v5.0
+    Discord: discord.gg/astrahub
+]]--
 
-if not game:IsLoaded() then
-    game.Loaded:Wait()
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+-- =============================================
+-- [[ SERVICES ]]
+-- =============================================
+local Players         = game:GetService("Players")
+local RunService      = game:GetService("RunService")
+local TweenService    = game:GetService("TweenService")
+local UserInputService= game:GetService("UserInputService")
+local HttpService     = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui      = game:GetService("StarterGui")
+local Workspace       = game:GetService("Workspace")
+local CoreGui         = game:GetService("CoreGui")
+local VirtualUser     = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+
+-- =============================================
+-- [[ LOCALS ]]
+-- =============================================
+local LP       = Players.LocalPlayer
+local Camera   = Workspace.CurrentCamera
+local Remotes  = ReplicatedStorage:WaitForChild("Remotes", 10)
+
+local function getChar()   return LP.Character end
+local function getHRP()    local c = getChar(); return c and c:FindFirstChild("HumanoidRootPart") end
+local function getHum()    local c = getChar(); return c and c:FindFirstChildWhichIsA("Humanoid") end
+
+-- =============================================
+-- [[ GLOBAL STATE ]]
+-- =============================================
+_G.Astra = _G.Astra or {}
+local S = _G.Astra   -- settings shorthand
+
+-- Toggles
+S.AutoFarm          = false
+S.AutoQuest         = false
+S.AutoStats         = false
+S.AutoHaki          = false
+S.AutoObservation   = false
+S.AutoObsV2         = false
+S.AutoAttack        = false
+S.FastAttack        = false
+S.BringMob          = false
+S.Magnet            = false
+S.KillAura          = false
+S.Aimbot            = false
+S.SilentAim         = false
+S.AutoSkillSpam     = false
+S.BringPlayer       = false
+S.SpeedHack         = false
+S.FlyEnabled        = false
+S.InfiniteJump      = false
+S.NoClip            = false
+S.GodMode           = false
+S.AntiKnockback     = false
+S.InfiniteEnergy    = false
+S.InfiniteStamina   = false
+S.NoFallDamage      = false
+S.WalkOnWater       = false
+S.FruitSniper       = false
+S.AutoCollectFruit  = false
+S.AutoStoreFruit    = false
+S.AutoEatFruit      = false
+S.AutoBuyFruit      = false
+S.NotifyRareFruit   = true
+S.AutoSeaBeast      = false
+S.AutoSummonSeaBeast= false
+S.AutoRaid          = false
+S.AutoStartRaid     = false
+S.AutoBoss          = false
+S.AutoEliteHunter   = false
+S.AutoDoughKing     = false
+S.AutoCakeEvent     = false
+S.AutoMirrorFractal = false
+S.AutoMaterialFarm  = false
+S.AutoFullyAwakened = false
+S.AntiAFK           = true
+S.FPSBoost          = false
+S.ChatSpammer       = false
+S.KillSay           = false
+S.ESPPlayer         = false
+S.ESPPlayerName     = true
+S.ESPPlayerDist     = true
+S.ESPPlayerHP       = true
+S.ESPPlayerTool     = false
+S.ESPPlayerTracer   = false
+S.ESPMob            = false
+S.ESPMobName        = true
+S.ESPMobDist        = true
+S.ESPMobHP          = true
+S.ESPMobTracer      = false
+S.ESPFruit          = false
+S.ESPFruitName      = true
+S.ESPFruitDist      = true
+S.ESPChest          = false
+S.ESPChestDist      = true
+S.ESPIsland         = false
+S.ESPNPC            = false
+
+-- Values
+S.Speed             = 16
+S.FlySpeed          = 80
+S.TweenSpeed        = 0.4     -- seconds
+S.FarmTarget        = "Nearest"
+S.SelectedIsland    = "Marine Starter"
+S.SelectedMonster   = ""
+S.SelectedBoss      = "Bobby"
+S.AutoFarmType      = "Level"
+S.StatsType         = "BloxFruit"
+S.RaidType          = "Darkbeard"
+S.ESPMaxDist        = 2000
+S.ESPTextSize       = 14
+S.ToggleKey         = Enum.KeyCode.RightShift
+S.ChatSpamMsg       = "Astra Hub | discord.gg/astrahub"
+S.KillSayMsg        = "GG ez"
+
+-- =============================================
+-- [[ HELPERS ]]
+-- =============================================
+local function Notify(title, text, dur)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title    = title,
+            Text     = text,
+            Duration = dur or 3,
+        })
+    end)
 end
 
--- // 1. Services & Safe Executor Functions //
-local cloneref = cloneref or function(o) return o end
-local Players = cloneref(game:GetService("Players"))
-local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
-local RunService = cloneref(game:GetService("RunService"))
-local VirtualUser = cloneref(game:GetService("VirtualUser"))
-local UserInputService = cloneref(game:GetService("UserInputService"))
-local Workspace = cloneref(game:GetService("Workspace"))
-local CoreGui = cloneref(game:GetService("CoreGui"))
-local HttpService = cloneref(game:GetService("HttpService"))
-local Lighting = cloneref(game:GetService("Lighting"))
-
-local LocalPlayer = Players.LocalPlayer
-while not LocalPlayer do
-    task.wait(0.1)
-    LocalPlayer = Players.LocalPlayer
+local function FireRemote(name, ...)
+    if not Remotes then return end
+    local r = Remotes:FindFirstChild(name)
+    if r and r:IsA("RemoteEvent") then
+        pcall(function() r:FireServer(...) end)
+    end
 end
 
-local getgenv = getgenv or function() return _G end
-local raw_sethiddenproperty = sethiddenproperty or set_hidden_property or sethiddenprop
-local raw_hookmetamethod = hookmetamethod
-local raw_getnamecallmethod = getnamecallmethod
-local raw_newcclosure = newcclosure or function(f) return f end
-local raw_checkcaller = checkcaller or function() return false end
-local raw_getupvalues = (debug and debug.getupvalues) or getupvalues or getupvals
-local raw_getgc = getgc or get_gc_objects
-local raw_firetouchinterest = firetouchinterest
-local raw_fireclickdetector = fireclickdetector
-local raw_fireproximityprompt = fireproximityprompt
-local raw_writefile = writefile
-local raw_readfile = readfile
-local raw_isfile = isfile
-local raw_makefolder = makefolder
-local raw_isfolder = isfolder
-
-local VirtualInputManager = nil
-pcall(function()
-    VirtualInputManager = cloneref(game:GetService("VirtualInputManager"))
-end)
-
--- // 2. Clean Teardown of Previous Instances //
-local SuiteName = "RedzHub_CleanV16"
-if getgenv().RedzV16_Teardown then
-    pcall(getgenv().RedzV16_Teardown)
-end
-if getgenv().OllieBF_Teardown then
-    pcall(getgenv().OllieBF_Teardown)
+local function InvokeRemote(name, ...)
+    if not Remotes then return end
+    local r = Remotes:FindFirstChild(name)
+    if r and r:IsA("RemoteFunction") then
+        local ok, res = pcall(function() return r:InvokeServer(...) end)
+        if ok then return res end
+    end
 end
 
-local SessionActive = true
-local Connections = {}
+local function TweenTo(target, speed)
+    local hrp = getHRP()
+    if not hrp then return end
+    speed = speed or S.TweenSpeed
+    local tween = TweenService:Create(hrp, TweenInfo.new(speed, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(target)})
+    tween:Play()
+    tween.Completed:Wait()
+end
 
-local function TrackConn(sig, fn)
-    if not sig then return nil end
-    local c = sig:Connect(fn)
-    table.insert(Connections, c)
+-- =============================================
+-- [[ UI THEME ]]
+-- =============================================
+local T = {
+    BG        = Color3.fromRGB(13, 13, 18),
+    Topbar    = Color3.fromRGB(18, 18, 26),
+    TabBar    = Color3.fromRGB(16, 16, 22),
+    TabActive = Color3.fromRGB(95, 55, 215),
+    TabHover  = Color3.fromRGB(40, 35, 70),
+    TabOff    = Color3.fromRGB(26, 26, 36),
+    Section   = Color3.fromRGB(20, 20, 28),
+    TogOn     = Color3.fromRGB(95, 55, 215),
+    TogOff    = Color3.fromRGB(45, 45, 58),
+    BtnBG     = Color3.fromRGB(75, 42, 170),
+    BtnHov    = Color3.fromRGB(105, 62, 230),
+    Slider    = Color3.fromRGB(95, 55, 215),
+    Text      = Color3.fromRGB(218, 218, 232),
+    Sub       = Color3.fromRGB(145, 145, 165),
+    Accent    = Color3.fromRGB(125, 75, 255),
+    Border    = Color3.fromRGB(40, 40, 55),
+    Input     = Color3.fromRGB(22, 22, 32),
+    White     = Color3.fromRGB(255, 255, 255),
+    Red       = Color3.fromRGB(185, 50, 50),
+}
+
+local function UICorner(r, p)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r)
+    c.Parent = p
     return c
 end
 
-local function GetGuiParent()
-    local ok, root = pcall(function()
-        if gethui then return gethui() end
-        return CoreGui
-    end)
-    return (ok and typeof(root) == "Instance" and root) or LocalPlayer:WaitForChild("PlayerGui", 10)
+local function UIStroke(col, thick, p)
+    local s = Instance.new("UIStroke")
+    s.Color = col
+    s.Thickness = thick or 1
+    s.Parent = p
+    return s
 end
 
-local GuiParent = GetGuiParent()
-for _, child in ipairs(GuiParent:GetChildren()) do
-    if string.find(child.Name, "RedzHub_") or string.find(child.Name, "OllieBench_") then
-        pcall(function() child:Destroy() end)
-    end
+local function UIPad(t, b, l, r, p)
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop    = UDim.new(0, t)
+    pad.PaddingBottom = UDim.new(0, b or t)
+    pad.PaddingLeft   = UDim.new(0, l or t)
+    pad.PaddingRight  = UDim.new(0, r or l or t)
+    pad.Parent = p
+    return pad
 end
 
--- // 3. Remotes & Network Wrappers //
-local Remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
-local CommF = Remotes and Remotes:WaitForChild("CommF_", 15)
-local CommE = Remotes and Remotes:FindFirstChild("CommE")
-
-local function InvokeCommF(...)
-    if not CommF or not CommF.Parent then
-        Remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        CommF = Remotes and Remotes:FindFirstChild("CommF_")
-    end
-    if not CommF then return nil end
-    local args = table.pack(...)
-    local ok, res = pcall(function()
-        return CommF:InvokeServer(table.unpack(args, 1, args.n))
-    end)
-    if ok then return res end
-    return nil
+local function UIList(dir, pad, p)
+    local l = Instance.new("UIListLayout")
+    l.FillDirection = dir or Enum.FillDirection.Vertical
+    l.Padding       = UDim.new(0, pad or 4)
+    l.Parent = p
+    return l
 end
 
-local function FireCommE(...)
-    if not CommE or not CommE.Parent then
-        Remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        CommE = Remotes and Remotes:FindFirstChild("CommE")
-    end
-    if not CommE then return end
-    local args = table.pack(...)
+-- =============================================
+-- [[ UI LIBRARY ]]
+-- =============================================
+local AstraUI = {}
+AstraUI.__index = AstraUI
+
+function AstraUI.new()
+    local self = setmetatable({}, AstraUI)
+
+    -- Destroy existing instance
+    if CoreGui:FindFirstChild("AstraHub") then CoreGui:FindFirstChild("AstraHub"):Destroy() end
+
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Name = "AstraHub"
+    self.ScreenGui.ResetOnSpawn = false
+    self.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    self.ScreenGui.DisplayOrder = 999
+
+    -- Executor gui protection
     pcall(function()
-        CommE:FireServer(table.unpack(args, 1, args.n))
+        if syn then syn.protect_gui(self.ScreenGui)
+        elseif protect_gui then protect_gui(self.ScreenGui) end
+        self.ScreenGui.Parent = CoreGui
     end)
+    if not self.ScreenGui.Parent then
+        self.ScreenGui.Parent = LP:WaitForChild("PlayerGui")
+    end
+
+    -- ---- Main Frame ----
+    local MF = Instance.new("Frame")
+    MF.Name            = "MainFrame"
+    MF.Size            = UDim2.new(0, 700, 0, 475)
+    MF.Position        = UDim2.new(0.5, -350, 0.5, -237)
+    MF.BackgroundColor3 = T.BG
+    MF.BorderSizePixel = 0
+    MF.Parent          = self.ScreenGui
+    UICorner(10, MF)
+    UIStroke(T.Border, 1, MF)
+    self.MainFrame = MF
+
+    -- ---- Topbar ----
+    local TB = Instance.new("Frame")
+    TB.Size             = UDim2.new(1, 0, 0, 40)
+    TB.BackgroundColor3 = T.Topbar
+    TB.BorderSizePixel  = 0
+    TB.Parent           = MF
+    UICorner(10, TB)
+    -- Fix bottom-round on topbar
+    local tbfix = Instance.new("Frame")
+    tbfix.Size = UDim2.new(1, 0, 0.5, 0)
+    tbfix.Position = UDim2.new(0, 0, 0.5, 0)
+    tbfix.BackgroundColor3 = T.Topbar
+    tbfix.BorderSizePixel = 0
+    tbfix.Parent = TB
+
+    -- Logo
+    local logo = Instance.new("TextLabel")
+    logo.Text = "✦ ASTRA HUB"
+    logo.Size = UDim2.new(0, 160, 1, 0)
+    logo.Position = UDim2.new(0, 14, 0, 0)
+    logo.BackgroundTransparency = 1
+    logo.TextColor3 = T.Accent
+    logo.Font = Enum.Font.GothamBold
+    logo.TextSize = 15
+    logo.TextXAlignment = Enum.TextXAlignment.Left
+    logo.Parent = TB
+
+    local sub = Instance.new("TextLabel")
+    sub.Text = "Blox Fruits  |  v5.0"
+    sub.Size = UDim2.new(0, 200, 1, 0)
+    sub.Position = UDim2.new(0, 168, 0, 0)
+    sub.BackgroundTransparency = 1
+    sub.TextColor3 = T.Sub
+    sub.Font = Enum.Font.Gotham
+    sub.TextSize = 11
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.Parent = TB
+
+    -- Close / Min buttons
+    local function makeTopBtn(icon, col, xOff)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0, 26, 0, 26)
+        b.Position = UDim2.new(1, xOff, 0.5, -13)
+        b.BackgroundColor3 = col
+        b.TextColor3 = T.White
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 11
+        b.Text = icon
+        b.BorderSizePixel = 0
+        b.Parent = TB
+        UICorner(5, b)
+        return b
+    end
+
+    local closeBtn = makeTopBtn("✕", T.Red, -32)
+    local minBtn   = makeTopBtn("─", T.TabOff, -62)
+
+    closeBtn.MouseButton1Click:Connect(function() MF.Visible = false end)
+
+    local minimized = false
+    minBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        self.TabBar.Visible   = not minimized
+        self.Content.Visible  = not minimized
+        MF.Size = minimized and UDim2.new(0, 700, 0, 40) or UDim2.new(0, 700, 0, 475)
+    end)
+
+    -- Drag
+    local dragging, dragStart, startPos = false
+    TB.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging  = true
+            dragStart = i.Position
+            startPos  = MF.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local d = i.Position - dragStart
+            MF.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+                                    startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+
+    -- ---- Tab Sidebar ----
+    local sidebar = Instance.new("Frame")
+    sidebar.Size             = UDim2.new(0, 148, 1, -40)
+    sidebar.Position         = UDim2.new(0, 0, 0, 40)
+    sidebar.BackgroundColor3 = T.TabBar
+    sidebar.BorderSizePixel  = 0
+    sidebar.Parent           = MF
+    -- top-left already rounded via MF; fix right side
+    local sbFix = Instance.new("Frame")
+    sbFix.Size = UDim2.new(0, 8, 1, 0)
+    sbFix.Position = UDim2.new(1, -8, 0, 0)
+    sbFix.BackgroundColor3 = T.TabBar
+    sbFix.BorderSizePixel = 0
+    sbFix.Parent = sidebar
+    local sbDiv = Instance.new("Frame")
+    sbDiv.Size = UDim2.new(0, 1, 1, 0)
+    sbDiv.Position = UDim2.new(1, -1, 0, 0)
+    sbDiv.BackgroundColor3 = T.Border
+    sbDiv.BorderSizePixel = 0
+    sbDiv.Parent = sidebar
+    UIList(Enum.FillDirection.Vertical, 2, sidebar)
+    UIPad(8, 8, 6, 6, sidebar)
+    self.TabBar = sidebar
+
+    -- ---- Content Area ----
+    local content = Instance.new("Frame")
+    content.Size             = UDim2.new(1, -148, 1, -40)
+    content.Position         = UDim2.new(0, 148, 0, 40)
+    content.BackgroundTransparency = 1
+    content.BorderSizePixel  = 0
+    content.ClipsDescendants = true
+    content.Parent           = MF
+    self.Content = content
+
+    -- Watermark strip
+    local wm = Instance.new("TextLabel")
+    wm.Text = "✦ ASTRA HUB  |  Blox Fruits  |  v5.0  |  discord.gg/astrahub"
+    wm.Size = UDim2.new(0, 420, 0, 20)
+    wm.Position = UDim2.new(1, -425, 0, 4)
+    wm.BackgroundTransparency = 1
+    wm.TextColor3 = T.Sub
+    wm.Font = Enum.Font.Gotham
+    wm.TextSize = 10
+    wm.TextXAlignment = Enum.TextXAlignment.Right
+    wm.Parent = TB
+
+    self.Tabs    = {}
+    self.TabBtns = {}
+
+    return self
 end
 
--- Auto Select Team if Unassigned
-task.spawn(function()
-    local t0 = os.clock()
-    while SessionActive and not LocalPlayer.Team and (os.clock() - t0 < 20) do
-        InvokeCommF("SetTeam", "Pirates")
-        task.wait(0.8)
+function AstraUI:Tab(name, icon)
+    icon = icon or "•"
+    -- Button
+    local btn = Instance.new("TextButton")
+    btn.Name            = name
+    btn.Size            = UDim2.new(1, 0, 0, 34)
+    btn.BackgroundColor3 = T.TabOff
+    btn.TextColor3      = T.Sub
+    btn.Font            = Enum.Font.Gotham
+    btn.TextSize        = 12
+    btn.Text            = icon .. "  " .. name
+    btn.TextXAlignment  = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
+    btn.Parent          = self.TabBar
+    UICorner(6, btn)
+    UIPad(0, 0, 10, 0, btn)
+
+    local indicator = Instance.new("Frame")
+    indicator.Size             = UDim2.new(0, 3, 0.55, 0)
+    indicator.Position         = UDim2.new(0, 2, 0.225, 0)
+    indicator.BackgroundColor3 = T.Accent
+    indicator.BorderSizePixel  = 0
+    indicator.Visible          = false
+    indicator.Parent           = btn
+    UICorner(2, indicator)
+
+    -- Scroll frame
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name                = name .. "_Frame"
+    scroll.Size                = UDim2.new(1, 0, 1, 0)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel     = 0
+    scroll.ScrollBarThickness  = 3
+    scroll.ScrollBarImageColor3 = T.Accent
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.CanvasSize          = UDim2.new(0, 0, 0, 0)
+    scroll.Visible             = false
+    scroll.Parent              = self.Content
+    UIList(Enum.FillDirection.Vertical, 6, scroll)
+    UIPad(10, 10, 12, 12, scroll)
+
+    local tab = { Frame = scroll, Btn = btn, Indicator = indicator }
+    self.Tabs[name] = tab
+    table.insert(self.TabBtns, name)
+
+    btn.MouseButton1Click:Connect(function() self:Select(name) end)
+    btn.MouseEnter:Connect(function()
+        if self.ActiveTab ~= name then
+            TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = T.TabHover}):Play()
+        end
+    end)
+    btn.MouseLeave:Connect(function()
+        if self.ActiveTab ~= name then
+            TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = T.TabOff}):Play()
+        end
+    end)
+
+    if #self.TabBtns == 1 then self:Select(name) end
+    return tab
+end
+
+function AstraUI:Select(name)
+    for n, t in pairs(self.Tabs) do
+        t.Frame.Visible = false
+        t.Btn.BackgroundColor3 = T.TabOff
+        t.Btn.TextColor3 = T.Sub
+        t.Indicator.Visible = false
+    end
+    if self.Tabs[name] then
+        self.Tabs[name].Frame.Visible = true
+        self.Tabs[name].Btn.BackgroundColor3 = T.TabActive
+        self.Tabs[name].Btn.TextColor3 = T.Text
+        self.Tabs[name].Indicator.Visible = true
+        self.ActiveTab = name
+    end
+end
+
+-- Section header
+function AstraUI:Section(tab, title)
+    local sf = Instance.new("Frame")
+    sf.Size             = UDim2.new(1, 0, 0, 0)
+    sf.AutomaticSize    = Enum.AutomaticSize.Y
+    sf.BackgroundColor3 = T.Section
+    sf.BorderSizePixel  = 0
+    sf.Parent           = tab.Frame
+    UICorner(7, sf)
+    UIStroke(T.Border, 1, sf)
+    UIList(Enum.FillDirection.Vertical, 3, sf)
+    UIPad(8, 8, 10, 10, sf)
+
+    local hdr = Instance.new("TextLabel")
+    hdr.Text = title:upper()
+    hdr.Size = UDim2.new(1, 0, 0, 18)
+    hdr.BackgroundTransparency = 1
+    hdr.TextColor3 = T.Accent
+    hdr.Font = Enum.Font.GothamBold
+    hdr.TextSize = 10
+    hdr.TextXAlignment = Enum.TextXAlignment.Left
+    hdr.Parent = sf
+
+    local div = Instance.new("Frame")
+    div.Size = UDim2.new(1, 0, 0, 1)
+    div.BackgroundColor3 = T.Border
+    div.BorderSizePixel = 0
+    div.Parent = sf
+
+    return sf
+end
+
+-- Toggle
+function AstraUI:Toggle(parent, text, default, cb)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 28)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = text
+    lbl.Size = UDim2.new(1, -48, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = T.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = row
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(0, 40, 0, 21)
+    bg.Position = UDim2.new(1, -40, 0.5, -10)
+    bg.BackgroundColor3 = default and T.TogOn or T.TogOff
+    bg.BorderSizePixel = 0
+    bg.Parent = row
+    UICorner(20, bg)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 15, 0, 15)
+    knob.Position = default and UDim2.new(1, -18, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+    knob.BackgroundColor3 = T.White
+    knob.BorderSizePixel = 0
+    knob.Parent = bg
+    UICorner(20, knob)
+
+    local state = default or false
+    local hitbox = Instance.new("TextButton")
+    hitbox.Size = UDim2.new(1, 0, 1, 0)
+    hitbox.BackgroundTransparency = 1
+    hitbox.Text = ""
+    hitbox.Parent = row
+
+    local function setState(v)
+        state = v
+        TweenService:Create(bg, TweenInfo.new(0.14), {BackgroundColor3 = state and T.TogOn or T.TogOff}):Play()
+        TweenService:Create(knob, TweenInfo.new(0.14), {
+            Position = state and UDim2.new(1,-18,0.5,-7) or UDim2.new(0,3,0.5,-7)
+        }):Play()
+        if cb then pcall(cb, state) end
+    end
+
+    hitbox.MouseButton1Click:Connect(function() setState(not state) end)
+
+    return {Set = setState, Get = function() return state end}
+end
+
+-- Button
+function AstraUI:Button(parent, text, cb)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 27)
+    btn.BackgroundColor3 = T.BtnBG
+    btn.TextColor3 = T.Text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 12
+    btn.Text = text
+    btn.BorderSizePixel = 0
+    btn.Parent = parent
+    UICorner(6, btn)
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = T.BtnHov}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = T.BtnBG}):Play()
+    end)
+    btn.MouseButton1Click:Connect(function() if cb then pcall(cb) end end)
+    return btn
+end
+
+-- Slider
+function AstraUI:Slider(parent, text, min, max, default, cb)
+    local sf = Instance.new("Frame")
+    sf.Size = UDim2.new(1, 0, 0, 46)
+    sf.BackgroundTransparency = 1
+    sf.Parent = parent
+
+    local topRow = Instance.new("Frame")
+    topRow.Size = UDim2.new(1, 0, 0, 18)
+    topRow.BackgroundTransparency = 1
+    topRow.Parent = sf
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = text
+    lbl.Size = UDim2.new(0.72, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = T.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = topRow
+
+    local valLbl = Instance.new("TextLabel")
+    valLbl.Text = tostring(default)
+    valLbl.Size = UDim2.new(0.28, 0, 1, 0)
+    valLbl.Position = UDim2.new(0.72, 0, 0, 0)
+    valLbl.BackgroundTransparency = 1
+    valLbl.TextColor3 = T.Accent
+    valLbl.Font = Enum.Font.GothamBold
+    valLbl.TextSize = 12
+    valLbl.TextXAlignment = Enum.TextXAlignment.Right
+    valLbl.Parent = topRow
+
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(1, 0, 0, 6)
+    track.Position = UDim2.new(0, 0, 0, 28)
+    track.BackgroundColor3 = T.TogOff
+    track.BorderSizePixel = 0
+    track.Parent = sf
+    UICorner(20, track)
+
+    local pct = (default - min) / (max - min)
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(pct, 0, 1, 0)
+    fill.BackgroundColor3 = T.Slider
+    fill.BorderSizePixel = 0
+    fill.Parent = track
+    UICorner(20, fill)
+
+    local nub = Instance.new("Frame")
+    nub.Size = UDim2.new(0, 13, 0, 13)
+    nub.Position = UDim2.new(pct, -6, 0.5, -6)
+    nub.BackgroundColor3 = T.White
+    nub.BorderSizePixel = 0
+    nub.ZIndex = 3
+    nub.Parent = track
+    UICorner(20, nub)
+
+    local value = default
+    local active = false
+
+    local function update(x)
+        local rel = math.clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        value = math.floor(min + (max - min) * rel)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        nub.Position = UDim2.new(rel, -6, 0.5, -6)
+        valLbl.Text = tostring(value)
+        if cb then pcall(cb, value) end
+    end
+
+    track.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            active = true; update(i.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if active and i.UserInputType == Enum.UserInputType.MouseMovement then update(i.Position.X) end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then active = false end
+    end)
+
+    return {Get = function() return value end}
+end
+
+-- Dropdown
+function AstraUI:Dropdown(parent, text, opts, default, cb)
+    local df = Instance.new("Frame")
+    df.Size = UDim2.new(1, 0, 0, 28)
+    df.BackgroundTransparency = 1
+    df.Parent = parent
+    df.ClipsDescendants = false
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = text
+    lbl.Size = UDim2.new(0.44, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = T.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = df
+
+    local selected = default or opts[1] or ""
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.54, 0, 1, 0)
+    btn.Position = UDim2.new(0.46, 0, 0, 0)
+    btn.BackgroundColor3 = T.Input
+    btn.TextColor3 = T.Text
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 11
+    btn.Text = selected .. "  ▾"
+    btn.BorderSizePixel = 0
+    btn.Parent = df
+    UICorner(5, btn)
+    UIStroke(T.Border, 1, btn)
+
+    local list = Instance.new("Frame")
+    list.Size = UDim2.new(0.54, 0, 0, math.min(#opts, 7) * 24 + 4)
+    list.Position = UDim2.new(0.46, 0, 1, 2)
+    list.BackgroundColor3 = T.Input
+    list.BorderSizePixel = 0
+    list.Visible = false
+    list.ZIndex = 15
+    list.Parent = df
+    UICorner(5, list)
+    UIStroke(T.Accent, 1, list)
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 2
+    scroll.ScrollBarImageColor3 = T.Accent
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ZIndex = 15
+    scroll.Parent = list
+    UIList(Enum.FillDirection.Vertical, 0, scroll)
+    UIPad(2, 2, 2, 2, scroll)
+
+    for _, opt in ipairs(opts) do
+        local ob = Instance.new("TextButton")
+        ob.Size = UDim2.new(1, 0, 0, 23)
+        ob.BackgroundColor3 = T.TabOff
+        ob.TextColor3 = T.Text
+        ob.Font = Enum.Font.Gotham
+        ob.TextSize = 11
+        ob.Text = opt
+        ob.BorderSizePixel = 0
+        ob.ZIndex = 16
+        ob.Parent = scroll
+        UICorner(4, ob)
+        ob.MouseButton1Click:Connect(function()
+            selected = opt
+            btn.Text = opt .. "  ▾"
+            list.Visible = false
+            if cb then pcall(cb, opt) end
+        end)
+        ob.MouseEnter:Connect(function()
+            TweenService:Create(ob, TweenInfo.new(0.08), {BackgroundColor3 = T.TabHover}):Play()
+        end)
+        ob.MouseLeave:Connect(function()
+            TweenService:Create(ob, TweenInfo.new(0.08), {BackgroundColor3 = T.TabOff}):Play()
+        end)
+    end
+
+    btn.MouseButton1Click:Connect(function() list.Visible = not list.Visible end)
+    UserInputService.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 and list.Visible then
+            -- close if clicking outside
+            task.wait()
+            if not btn:IsDescendantOf(game) then return end
+            local mPos = UserInputService:GetMouseLocation()
+            local listPos  = list.AbsolutePosition
+            local listSize = list.AbsoluteSize
+            if mPos.X < listPos.X or mPos.X > listPos.X + listSize.X or
+               mPos.Y < listPos.Y or mPos.Y > listPos.Y + listSize.Y then
+                list.Visible = false
+            end
+        end
+    end)
+
+    return {Get = function() return selected end, Set = function(v) selected = v; btn.Text = v.."  ▾" end}
+end
+
+-- Label
+function AstraUI:Label(parent, text, col)
+    local l = Instance.new("TextLabel")
+    l.Text = text
+    l.Size = UDim2.new(1, 0, 0, 18)
+    l.AutomaticSize = Enum.AutomaticSize.Y
+    l.BackgroundTransparency = 1
+    l.TextColor3 = col or T.Sub
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 11
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.TextWrapped = true
+    l.Parent = parent
+    return l
+end
+
+-- Input
+function AstraUI:Input(parent, label, placeholder, cb)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 28)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = label
+    lbl.Size = UDim2.new(0.4, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = T.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = row
+
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.58, 0, 1, 0)
+    box.Position = UDim2.new(0.42, 0, 0, 0)
+    box.BackgroundColor3 = T.Input
+    box.TextColor3 = T.Text
+    box.PlaceholderText = placeholder or ""
+    box.PlaceholderColor3 = T.Sub
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 11
+    box.Text = ""
+    box.BorderSizePixel = 0
+    box.ClearTextOnFocus = false
+    box.Parent = row
+    UICorner(5, box)
+    UIStroke(T.Border, 1, box)
+
+    box.FocusLost:Connect(function(enter) if enter and cb then pcall(cb, box.Text) end end)
+    return box
+end
+
+-- =============================================
+-- [[ BUILD UI ]]
+-- =============================================
+local UI = AstraUI.new()
+
+-- Toggle key
+UserInputService.InputBegan:Connect(function(i, gp)
+    if not gp and i.KeyCode == S.ToggleKey then
+        UI.MainFrame.Visible = not UI.MainFrame.Visible
     end
 end)
 
--- // 4. Configuration //
-local ConfigFolder = "RedzHub_CleanV16"
-local ConfigFile = ConfigFolder .. "/cfg_" .. tostring(LocalPlayer.UserId) .. ".json"
-
-local Config = {
-    -- Core Combat & Movement
-    SelectedWeapon = "Melee", -- "Melee", "Sword", "Blox Fruit", "Gun"
-    MasteryWeapon = "Blox Fruit",
-    FarmDistanceY = 12.5,     -- Optimal melee/sword vertical hitbox distance
-    TweenSpeed = 295,
-
-    -- Combat Helpers
-    FastAttack = true,
-    SuperFastAttack = true,
-    BringMobs = true,
-    AutoBuso = true,
-    AutoKen = false,
-    WalkOnWater = true,
-    AntiAFK = true,
-
-    -- Main Auto Farm
-    AutoFarmLevel = false,
-    AutoFarmNearest = false,
-    AutoFarmBosses = false,
-    SelectedSpecificBoss = "All Bosses",
-    AutoFarmChest = false,
-    AutoFarmBone = false,
-    AutoTradeBones = false,
-    AutoFarmKatakuri = false,
-    AutoSpawnCakePrince = true,
-    AutoEliteHunter = false,
-    AutoFactory = false,
-    AutoPirateRaid = false,
-
-    -- Mastery
-    AutoFarmMastery = false,
-    MasteryHealthPct = 35,
-    SkillZ = true,
-    SkillX = true,
-    SkillC = true,
-    SkillV = false,
-    SkillF = false,
-
-    -- Sea Unlocks, Quests & Swords
-    AutoSecondSea = false,
-    AutoThirdSea = false,
-    AutoSaber = false,
-    AutoBartilo = false,
-    AutoRengoku = false,
-    AutoYama = false,
-    AutoTushita = false,
-    AutoCDK = false,
-    AutoSoulGuitar = false,
-
-    -- Sea Events & Race V4
-    AutoSeaBeast = false,
-    AutoTerrorshark = false,
-    AutoGhostShip = false,
-    AutoKitsuneIsland = false,
-    AutoFindMirage = false,
-    AutoTeleportGear = false,
-    AutoPullLever = false,
-    AutoTrialV4 = false,
-    AutoActivateV4 = false,
-
-    -- Fruit & Raid
-    AutoRandomFruit = false,
-    AutoStoreFruit = true,
-    GrabDroppedFruits = false,
-    SniperFruitTarget = "Kitsune-Kitsune",
-    AutoSnipeFruit = false,
-    SelectedRaid = "Flame",
-    AutoBuyChip = false,
-    AutoStartRaid = false,
-    AutoRaidDungeon = false,
-    AutoAwaken = false,
-
-    -- Stats & Player
-    AutoStats = false,
-    StatTarget = "Melee",
-    StatPoints = 3,
-    SilentAim = true,
-    NoClip = false,
-    InfiniteEnergy = true,
-    FullBright = false,
-
-    -- ESP
-    ESPPlayers = false,
-    ESPBosses = false,
-    ESPFruits = true,
-    ESPFlowers = false,
-    ESPMirage = false,
-    ESPIslands = false,
+-- =============================================
+-- [[ DATA TABLES ]]
+-- =============================================
+local Islands = {
+    -- First Sea
+    {n="Marine Starter",    p=Vector3.new(-1268,  6,  -104)},
+    {n="Middle Town",       p=Vector3.new(290,   15,  1580)},
+    {n="Jungle",            p=Vector3.new(-1795, 13,   206)},
+    {n="Pirate Village",    p=Vector3.new(-2490,  8, -1500)},
+    {n="Desert",            p=Vector3.new(938,   26,  4080)},
+    {n="Snow Mountain",     p=Vector3.new(-2609,228,  3218)},
+    {n="Marine Fortress",   p=Vector3.new(-4818,  8, -2247)},
+    {n="Skylands",          p=Vector3.new(-4826,883, -1420)},
+    {n="Prison",            p=Vector3.new(4718,   6, -3293)},
+    {n="Colosseum",         p=Vector3.new(926,    7, -4319)},
+    {n="Magma Village",     p=Vector3.new(-4889, 10,  4040)},
+    {n="Upper Skylands",    p=Vector3.new(-5000,1032,-1420)},
+    {n="Ice Castle",        p=Vector3.new(-2245,226,  3680)},
+    {n="Fountain City",     p=Vector3.new(3600,   6,   900)},
+    -- Second Sea
+    {n="Kingdom of Rose",   p=Vector3.new(-188,   6, -3282)},
+    {n="Green Zone",        p=Vector3.new(3055,  13, -4920)},
+    {n="Graveyard",         p=Vector3.new(-3348,  6, -3800)},
+    {n="Snow Island S2",    p=Vector3.new(1049,   6, -5200)},
+    {n="Hot and Cold",      p=Vector3.new(-3500,  8, -5000)},
+    {n="Cursed Ship",       p=Vector3.new(1550,   2, -3340)},
+    {n="Ice Cream Island",  p=Vector3.new(2480,   6, -5400)},
+    {n="Forgotten Island",  p=Vector3.new(-3760,  6, -5890)},
+    {n="Dark Arena",        p=Vector3.new(1540,   2, -5520)},
+    {n="Usoapp Island",     p=Vector3.new(-680,   6, -5750)},
+    {n="Floating Turtle",   p=Vector3.new(4000,   6, -6500)},
+    -- Third Sea
+    {n="Port Town",         p=Vector3.new(-4900,  6,  1100)},
+    {n="Hydra Island",      p=Vector3.new(-3800,  8,  6700)},
+    {n="Great Tree",        p=Vector3.new(1600,   6,  5700)},
+    {n="Floating Root",     p=Vector3.new(3500,   8,  5800)},
+    {n="Castle on the Sea", p=Vector3.new(-800,   6,  8600)},
+    {n="Icy Grid",          p=Vector3.new(5000,   6,  5000)},
+    {n="Tidal Flat",        p=Vector3.new(-5500,  6,  5500)},
+    {n="Sea of Treats",     p=Vector3.new(0,      6, 10500)},
 }
 
-local Runtime = {
-    TaskName = "Idle",
-    FruitRadarText = "Fruit Radar: Đang quét...",
-    TestReportText = "Self-Test: Đang kiểm tra...",
-    CurrentSea = 1,
-    TargetMob = nil,
-    AimbotPart = nil,
-    BringPosCF = nil,
-    BringMobName = nil,
-    MoveGoalPos = nil,
-    MoveStopOnArrive = false,
-    ConfirmedQuestName = nil,
-    LastStartQuestTick = 0,
-    LastAbandonQuestTick = 0,
-    SpawnPatrolIdx = 1,
-    LastSpawnPatrolTick = 0,
-    SwingCount = 0,
+local IslandNames = {}
+for _, v in ipairs(Islands) do table.insert(IslandNames, v.n) end
+
+local Bosses = {
+    "Bobby","Yeti","Chief Petty Officer","Saber Expert","Magma Admiral",
+    "Golden Boss","Jeremy","Greybeard","Wysper","Thunder God",
+    "Cyborg","Dark Master","Cake Queen","Ice Admiral","Order",
+    "Carbine","Longma","Rip_Indra","Soul Reaper","Captain Elephant",
+    "Beautiful Pirate","Shanks","Kilo Admiral","Clown","Cake Prince Boss",
+    "Dragon Crew Captain","Cursed Captain",
 }
 
-local function SaveConfig()
+local Monsters = {
+    "Bandit","Monkey","Gorilla","Pirate","Desert Bandit","Snow Bandit",
+    "Toga Warrior","Arctic Warrior","Prison Guard","Gladiator",
+    "Magma Ninja","Sky Castaway","Fishman","Fishman Lord",
+    "Cocoa Warrior","Candy Rebel","Cake Guard","Ice Cream Marine",
+    "Marine Recruit","Marine Soldier","Marine Lieutenant","Marine Captain",
+    "Dragon","Sea Soldier","Reef Bandit","Carbine Soldier","Toad",
+    "Forest Pirate","Diamond Sword Warrior","Mythological Pirate",
+}
+
+local RaidTypes = {"Darkbeard","Factory","Cake Prince","Dough King","Elite Hunter","Hydra","Mirror Fractal"}
+local StatTypes = {"Melee","Defense","Sword","Gun","BloxFruit"}
+local FarmModes = {"Nearest","Highest Level","Specific"}
+local FarmTypes = {"Level","Mastery","Fruit","Bone","Cake","Material","Boss","Chest"}
+
+-- Quest NPC positions (representative — adapt if game updates)
+local QuestNPCs = {
+    ["Marine Starter"]  = Vector3.new(-1255, 7,  -95),
+    ["Middle Town"]     = Vector3.new(295,  16, 1612),
+    ["Jungle"]          = Vector3.new(-1790,14,  200),
+    ["Pirate Village"]  = Vector3.new(-2480, 9,-1495),
+    ["Desert"]          = Vector3.new(945,  27, 4075),
+    ["Snow Mountain"]   = Vector3.new(-2600,229,3210),
+    ["Marine Fortress"] = Vector3.new(-4810, 9,-2240),
+    ["Kingdom of Rose"] = Vector3.new(-182,  9,-3275),
+    ["Port Town"]       = Vector3.new(-4892, 9, 1108),
+    ["Hydra Island"]    = Vector3.new(-3790, 9, 6710),
+}
+
+-- =============================================
+-- [[ TABS ]]
+-- =============================================
+
+-- ─────────── MAIN TAB ───────────
+local mainTab = UI:Tab("Main", "⚔")
+local secFarmType = UI:Section(mainTab, "Farm Settings")
+UI:Dropdown(secFarmType, "Farm Type",  FarmTypes,  "Level", function(v) S.AutoFarmType  = v end)
+UI:Dropdown(secFarmType, "Farm Mode",  FarmModes,  "Nearest", function(v) S.FarmTarget  = v end)
+UI:Dropdown(secFarmType, "Monster",    Monsters,   Monsters[1], function(v) S.SelectedMonster = v end)
+UI:Dropdown(secFarmType, "Island",     IslandNames,IslandNames[1], function(v) S.SelectedIsland = v end)
+
+local secAutoFarm = UI:Section(mainTab, "Auto Farm")
+UI:Toggle(secAutoFarm, "Auto Farm",        false, function(v) S.AutoFarm = v end)
+UI:Toggle(secAutoFarm, "Auto Quest",       false, function(v) S.AutoQuest = v end)
+UI:Toggle(secAutoFarm, "Auto Stats",       false, function(v) S.AutoStats = v end)
+UI:Dropdown(secAutoFarm, "Stats Type", StatTypes, "BloxFruit", function(v) S.StatsType = v end)
+UI:Toggle(secAutoFarm, "Fast Attack",      false, function(v) S.FastAttack = v end)
+UI:Toggle(secAutoFarm, "Bring Mob",        false, function(v) S.BringMob   = v end)
+UI:Toggle(secAutoFarm, "Magnet (Pull)",    false, function(v) S.Magnet     = v end)
+
+local secHaki = UI:Section(mainTab, "Haki")
+UI:Toggle(secHaki, "Auto Buso Haki",       false, function(v) S.AutoHaki        = v end)
+UI:Toggle(secHaki, "Auto Observation",     false, function(v) S.AutoObservation  = v end)
+UI:Toggle(secHaki, "Auto Observation V2",  false, function(v) S.AutoObsV2        = v end)
+UI:Slider(mainTab.Frame, "Tween Speed (x10)", 1, 30, 4, function(v) S.TweenSpeed = v / 10 end)
+
+-- ─────────── PLAYER TAB ───────────
+local playerTab = UI:Tab("Player", "👤")
+
+local secPvP = UI:Section(playerTab, "PvP")
+UI:Toggle(secPvP, "Kill Aura",       false, function(v) S.KillAura    = v end)
+UI:Toggle(secPvP, "Aimbot",          false, function(v) S.Aimbot      = v end)
+UI:Toggle(secPvP, "Silent Aim",      false, function(v) S.SilentAim   = v end)
+UI:Toggle(secPvP, "Auto Skill Spam", false, function(v) S.AutoSkillSpam = v end)
+UI:Toggle(secPvP, "Bring Player",    false, function(v) S.BringPlayer  = v end)
+
+local secESPPlayer = UI:Section(playerTab, "ESP Player")
+UI:Toggle(secESPPlayer, "ESP Player",     false, function(v) S.ESPPlayer      = v end)
+UI:Toggle(secESPPlayer, "Show Name",      true,  function(v) S.ESPPlayerName  = v end)
+UI:Toggle(secESPPlayer, "Show Distance",  true,  function(v) S.ESPPlayerDist  = v end)
+UI:Toggle(secESPPlayer, "Show Health",    true,  function(v) S.ESPPlayerHP    = v end)
+UI:Toggle(secESPPlayer, "Show Tool",      false, function(v) S.ESPPlayerTool  = v end)
+UI:Toggle(secESPPlayer, "Tracers",        false, function(v) S.ESPPlayerTracer = v end)
+
+local secMove = UI:Section(playerTab, "Movement")
+UI:Toggle(secMove, "Speed Hack",      false, function(v)
+    S.SpeedHack = v
+    if not v then pcall(function() LP.Character.Humanoid.WalkSpeed = 16 end) end
+end)
+UI:Slider(secMove, "Walk Speed", 16, 600, 16, function(v)
+    S.Speed = v
+    if S.SpeedHack then pcall(function() LP.Character.Humanoid.WalkSpeed = v end) end
+end)
+UI:Toggle(secMove, "Fly",             false, function(v) S.FlyEnabled    = v end)
+UI:Slider(secMove, "Fly Speed", 20, 400, 80, function(v) S.FlySpeed = v end)
+UI:Toggle(secMove, "Infinite Jump",   false, function(v) S.InfiniteJump  = v end)
+UI:Toggle(secMove, "No Clip",         false, function(v) S.NoClip        = v end)
+
+local secGod = UI:Section(playerTab, "Protection")
+UI:Toggle(secGod, "God Mode",         false, function(v) S.GodMode       = v end)
+UI:Toggle(secGod, "Anti Knockback",   false, function(v) S.AntiKnockback = v end)
+UI:Toggle(secGod, "Infinite Energy",  false, function(v) S.InfiniteEnergy = v end)
+UI:Toggle(secGod, "Infinite Stamina", false, function(v) S.InfiniteStamina = v end)
+UI:Toggle(secGod, "No Fall Damage",   false, function(v) S.NoFallDamage  = v end)
+
+-- ─────────── FRUIT TAB ───────────
+local fruitTab = UI:Tab("Fruit", "🍎")
+
+local secFruitFarm = UI:Section(fruitTab, "Fruit Farm")
+UI:Toggle(secFruitFarm, "Fruit Sniper (Auto Grab)", false, function(v) S.FruitSniper    = v end)
+UI:Toggle(secFruitFarm, "Auto Collect Fruit",        false, function(v) S.AutoCollectFruit = v end)
+UI:Toggle(secFruitFarm, "Auto Store Fruit",          false, function(v) S.AutoStoreFruit  = v end)
+UI:Toggle(secFruitFarm, "Auto Eat Fruit",            false, function(v) S.AutoEatFruit    = v end)
+UI:Toggle(secFruitFarm, "Auto Buy Random Fruit",     false, function(v) S.AutoBuyFruit    = v end)
+UI:Toggle(secFruitFarm, "Notify Rare Fruit",         true,  function(v) S.NotifyRareFruit = v end)
+
+local secFruitESP = UI:Section(fruitTab, "Fruit ESP")
+UI:Toggle(secFruitESP, "Fruit ESP",      false, function(v) S.ESPFruit     = v end)
+UI:Toggle(secFruitESP, "Show Name",      true,  function(v) S.ESPFruitName = v end)
+UI:Toggle(secFruitESP, "Show Distance",  true,  function(v) S.ESPFruitDist = v end)
+
+local secFruitMgr = UI:Section(fruitTab, "Inventory")
+UI:Button(secFruitMgr, "Auto Equip Best Fruit", function()
     pcall(function()
-        if raw_writefile then
-            if raw_isfolder and raw_makefolder and not raw_isfolder(ConfigFolder) then
-                raw_makefolder(ConfigFolder)
+        for _, item in ipairs(LP.Backpack:GetChildren()) do
+            if item:FindFirstChild("FruitName") or item.Name:find("Fruit") then
+                FireRemote("EquipFruit", item)
+                Notify("Astra Hub", "Equipped: " .. item.Name, 2)
+                break
             end
-            raw_writefile(ConfigFile, HttpService:JSONEncode(Config))
         end
     end)
-end
-
-local function LoadConfig()
+end)
+UI:Button(secFruitMgr, "Store All Fruits", function()
     pcall(function()
-        if raw_isfile and raw_readfile and raw_isfile(ConfigFile) then
-            local decoded = HttpService:JSONDecode(raw_readfile(ConfigFile))
-            if type(decoded) == "table" then
-                for k, v in pairs(decoded) do
-                    if Config[k] ~= nil and type(Config[k]) == type(v) then
-                        Config[k] = v
-                    end
-                end
+        for _, item in ipairs(LP.Backpack:GetChildren()) do
+            if item:FindFirstChild("FruitName") or item.Name:find("Fruit") then
+                FireRemote("StoreFruit", item)
+                FireRemote("StoreFruitInChest", item)
             end
         end
+        Notify("Astra Hub", "All fruits stored", 2)
     end)
-end
-LoadConfig()
+end)
 
-Config.FastAttack = true
-Config.BringMobs = true
-Config.AutoBuso = true
-if Config.FarmDistanceY > 15 then
-    Config.FarmDistanceY = 12.5
-end
-Config.TweenSpeed = math.clamp(Config.TweenSpeed, 180, 330)
+-- ─────────── SEA / RAID TAB ───────────
+local seaTab = UI:Tab("Sea/Raid", "🌊")
 
--- // 5. Exact Devil Fruit Resolver (Zero "Controller" -> "Control" Bug) //
-local ExactFruitTable = {
-    {Base = "Rocket", Code = "Rocket-Rocket", VN = "Trái Tên Lửa (Rocket)"},
-    {Base = "Spin", Code = "Spin-Spin", VN = "Trái Chong Chóng (Spin)"},
-    {Base = "Blade", Code = "Blade-Blade", VN = "Trái Lưỡi Dao (Blade)"},
-    {Base = "Chop", Code = "Chop-Chop", VN = "Trái Phân Tách (Chop)"},
-    {Base = "Spring", Code = "Spring-Spring", VN = "Trái Lò Xo (Spring)"},
-    {Base = "Bomb", Code = "Bomb-Bomb", VN = "Trái Bom (Bomb)"},
-    {Base = "Smoke", Code = "Smoke-Smoke", VN = "Trái Khói (Smoke)"},
-    {Base = "Spike", Code = "Spike-Spike", VN = "Trái Gai (Spike)"},
-    {Base = "Flame", Code = "Flame-Flame", VN = "Trái Lửa (Flame)"},
-    {Base = "Falcon", Code = "Falcon-Falcon", VN = "Trái Đại Bàng (Falcon)"},
-    {Base = "Ice", Code = "Ice-Ice", VN = "Trái Băng (Ice)"},
-    {Base = "Sand", Code = "Sand-Sand", VN = "Trái Cát (Sand)"},
-    {Base = "Dark", Code = "Dark-Dark", VN = "Trái Bóng Tối (Dark)"},
-    {Base = "Diamond", Code = "Diamond-Diamond", VN = "Trái Kim Cương (Diamond)"},
-    {Base = "Light", Code = "Light-Light", VN = "Trái Ánh Sáng (Light)"},
-    {Base = "Rubber", Code = "Rubber-Rubber", VN = "Trái Cao Su (Rubber)"},
-    {Base = "Barrier", Code = "Barrier-Barrier", VN = "Trái Rào Chắn (Barrier)"},
-    {Base = "Ghost", Code = "Ghost-Ghost", VN = "Trái Hồn Ma (Ghost)"},
-    {Base = "Magma", Code = "Magma-Magma", VN = "Trái Dung Nham (Magma)"},
-    {Base = "Quake", Code = "Quake-Quake", VN = "Trái Chấn Động (Quake)"},
-    {Base = "Buddha", Code = "Buddha-Buddha", VN = "Trái Phật Tổ (Buddha)"},
-    {Base = "Love", Code = "Love-Love", VN = "Trái Tình Yêu (Love)"},
-    {Base = "Spider", Code = "Spider-Spider", VN = "Trái Nhện (Spider)"},
-    {Base = "Sound", Code = "Sound-Sound", VN = "Trái Âm Thanh (Sound)"},
-    {Base = "Phoenix", Code = "Phoenix-Phoenix", VN = "Trái Phượng Hoàng (Phoenix)"},
-    {Base = "Portal", Code = "Portal-Portal", VN = "Trái Dịch Chuyển (Portal)"},
-    {Base = "Rumble", Code = "Rumble-Rumble", VN = "Trái Sét (Rumble)"},
-    {Base = "Pain", Code = "Pain-Pain", VN = "Trái Đau Đớn (Pain)"},
-    {Base = "Blizzard", Code = "Blizzard-Blizzard", VN = "Trái Bão Tuyết (Blizzard)"},
-    {Base = "Gravity", Code = "Gravity-Gravity", VN = "Trái Trọng Lực (Gravity)"},
-    {Base = "Mammoth", Code = "Mammoth-Mammoth", VN = "Trái Voi Ma Mút (Mammoth)"},
-    {Base = "T-Rex", Code = "T-Rex-T-Rex", VN = "Trái Khủng Long (T-Rex)"},
-    {Base = "Dough", Code = "Dough-Dough", VN = "Trái Bột (Dough)"},
-    {Base = "Shadow", Code = "Shadow-Shadow", VN = "Trái Bóng Ma (Shadow)"},
-    {Base = "Venom", Code = "Venom-Venom", VN = "Trái Độc (Venom)"},
-    {Base = "Control", Code = "Control-Control", VN = "Trái Điều Khiển (Control)"},
-    {Base = "Gas", Code = "Gas-Gas", VN = "Trái Khí Gas (Gas)"},
-    {Base = "Spirit", Code = "Spirit-Spirit", VN = "Trái Linh Hồn (Spirit)"},
-    {Base = "Leopard", Code = "Leopard-Leopard", VN = "Trái Báo Đốm (Leopard)"},
-    {Base = "Yeti", Code = "Yeti-Yeti", VN = "Trái Người Tuyết (Yeti)"},
-    {Base = "Kitsune", Code = "Kitsune-Kitsune", VN = "Trái Cáo Chín Đuôi (Kitsune)"},
-    {Base = "Dragon", Code = "Dragon-Dragon", VN = "Trái Rồng (Dragon)"},
-}
+local secSea = UI:Section(seaTab, "Sea Beast")
+UI:Toggle(secSea, "Auto Sea Beast Farm",    false, function(v) S.AutoSeaBeast      = v end)
+UI:Toggle(secSea, "Auto Summon Sea Beast",  false, function(v) S.AutoSummonSeaBeast = v end)
 
-local IgnoredInternalNames = {
-    ["controller"] = true,
-    ["controlscript"] = true,
-    ["eatcontroller"] = true,
-    ["rigcontroller"] = true,
-    ["handle"] = true,
-    ["fruit"] = true,
-    ["fruit "] = true,
-}
+local secRaid = UI:Section(seaTab, "Raid")
+UI:Dropdown(secRaid, "Raid Type", RaidTypes, "Darkbeard", function(v) S.RaidType = v end)
+UI:Toggle(secRaid, "Auto Raid",         false, function(v) S.AutoRaid      = v end)
+UI:Toggle(secRaid, "Auto Start Raid",   false, function(v) S.AutoStartRaid = v end)
 
-local function MatchExactFruitString(rawStr)
-    if type(rawStr) ~= "string" or #rawStr == 0 then return nil, nil end
-    local lower = string.lower(rawStr)
-    if IgnoredInternalNames[lower] then
-        return nil, nil
-    end
-    local stripped = string.gsub(lower, "%s*fruit%s*$", "")
-    stripped = string.gsub(stripped, "^(.-)%-%1$", "%1")
-    stripped = string.gsub(stripped, "^%s*(.-)%s*$", "%1")
+local secBoss = UI:Section(seaTab, "Boss Farm")
+UI:Toggle(secBoss, "Auto Boss Farm",    false, function(v) S.AutoBoss        = v end)
+UI:Toggle(secBoss, "Auto Elite Hunter", false, function(v) S.AutoEliteHunter = v end)
+UI:Dropdown(secBoss, "Boss Target", Bosses, Bosses[1], function(v) S.SelectedBoss = v end)
 
-    for _, entry in ipairs(ExactFruitTable) do
-        local bLower = string.lower(entry.Base)
-        local cLower = string.lower(entry.Code)
-        if stripped == bLower or lower == cLower or lower == (bLower .. " fruit") then
-            return entry.VN, entry.Code
-        end
-    end
-    return nil, nil
-end
+local secEvent = UI:Section(seaTab, "Event / Special")
+UI:Toggle(secEvent, "Auto Dough King",      false, function(v) S.AutoDoughKing    = v end)
+UI:Toggle(secEvent, "Auto Cake Prince",     false, function(v) S.AutoCakeEvent    = v end)
+UI:Toggle(secEvent, "Auto Mirror Fractal",  false, function(v) S.AutoMirrorFractal = v end)
+UI:Toggle(secEvent, "Auto Material Farm",   false, function(v) S.AutoMaterialFarm  = v end)
+UI:Toggle(secEvent, "Auto Fully Awakened",  false, function(v) S.AutoFullyAwakened  = v end)
 
-local function GetStoreCodeForTool(tool)
-    if not tool then return nil end
-    local orig = tool:GetAttribute("OriginalName")
-    if type(orig) == "string" and #orig > 0 then
-        local _, code = MatchExactFruitString(orig)
-        return code or orig
-    end
-    local _, code = MatchExactFruitString(tool.Name)
-    if code then return code end
-    if string.find(tool.Name, "Fruit", 1, true) then
-        local clean = string.gsub(tool.Name, " Fruit", "")
-        return clean .. "-" .. clean
-    end
-    return nil
-end
+-- ─────────── TELEPORT TAB ───────────
+local tpTab = UI:Tab("Teleport", "🌀")
 
-local function StoreAllFruitsInBags()
-    if not Config.AutoStoreFruit then return end
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    local ch = LocalPlayer.Character
-    for _, container in ipairs({bp, ch}) do
-        if container then
-            for _, item in ipairs(container:GetChildren()) do
-                if item:IsA("Tool") and (string.find(item.Name, "Fruit", 1, true) or item:GetAttribute("OriginalName")) then
-                    local code = GetStoreCodeForTool(item)
-                    if code then
-                        InvokeCommF("StoreFruit", code, item)
-                    end
-                end
-            end
-        end
-    end
-end
-
-local function ResolveRealFruitObject(obj)
-    if not obj or not obj.Parent then return false, nil, nil end
-    if Players:GetPlayerFromCharacter(obj) or obj:FindFirstChildOfClass("Humanoid") then
-        return false, nil, nil
-    end
-
-    if obj:IsA("Tool") then
-        local handle = obj:FindFirstChild("Handle")
-        if handle and handle:IsA("BasePart") then
-            local orig = obj:GetAttribute("OriginalName") or obj:GetAttribute("FruitName")
-            if type(orig) == "string" and #orig > 0 then
-                local vnName = MatchExactFruitString(orig)
-                return true, handle, vnName or orig
-            end
-            local vnFromName = MatchExactFruitString(obj.Name)
-            if vnFromName then
-                return true, handle, vnFromName
-            end
-            if string.find(obj.Name, "Fruit", 1, true) then
-                for _, child in ipairs(obj:GetChildren()) do
-                    if child:IsA("BasePart") or child:IsA("MeshPart") or child:IsA("Model") then
-                        local vnChild = MatchExactFruitString(child.Name)
-                        if vnChild then return true, handle, vnChild end
-                    elseif child:IsA("StringValue") then
-                        local vnVal = MatchExactFruitString(child.Value)
-                        if vnVal then return true, handle, vnVal end
-                    end
-                end
-                return true, handle, obj.Name
-            end
-        end
-        return false, nil, nil
-    end
-
-    if obj:IsA("Model") and (obj.Name == "Fruit " or obj.Name == "Fruit" or obj:GetAttribute("OriginalName") ~= nil) then
-        local handle = obj:FindFirstChild("Handle")
-        if handle and handle:IsA("BasePart") then
-            local orig = obj:GetAttribute("OriginalName") or obj:GetAttribute("FruitName")
-            if type(orig) == "string" and #orig > 0 then
-                local vnName = MatchExactFruitString(orig)
-                return true, handle, vnName or orig
-            end
-            for _, child in ipairs(obj:GetChildren()) do
-                if child:IsA("BasePart") or child:IsA("MeshPart") or child:IsA("Model") then
-                    local vnChild = MatchExactFruitString(child.Name)
-                    if vnChild then return true, handle, vnChild end
-                elseif child:IsA("StringValue") then
-                    local vnVal = MatchExactFruitString(child.Value)
-                    if vnVal then return true, handle, vnVal end
-                end
-            end
-            return true, handle, "Trái Tự Nhiên (Spawned Fruit)"
-        end
-    end
-
-    return false, nil, nil
-end
-
-local function ScanAllRealFruitsOnMap(rootPos)
-    local results = {}
-    local seenHandles = {}
-
-    local function CheckContainer(folder)
-        if not folder then return end
-        for _, obj in ipairs(folder:GetChildren()) do
-            local ok, handle, fName = ResolveRealFruitObject(obj)
-            if ok and handle and not seenHandles[handle] then
-                seenHandles[handle] = true
-                local dist = rootPos and math.floor((handle.Position - rootPos).Magnitude) or 0
-                table.insert(results, {
-                    Instance = obj,
-                    Handle = handle,
-                    Name = fName,
-                    Distance = dist,
-                })
-            end
-        end
-    end
-
-    CheckContainer(Workspace)
-    CheckContainer(Workspace:FindFirstChild("_WorldOrigin"))
-    table.sort(results, function(a, b) return a.Distance < b.Distance end)
-    return results
-end
-
--- // 6. Sea Detection & Complete Databases //
-local function DetectSea()
-    local pid = game.PlaceId
-    if pid == 2753915549 then
-        Runtime.CurrentSea = 1
-    elseif pid == 4442272183 then
-        Runtime.CurrentSea = 2
-    elseif pid == 7449423635 then
-        Runtime.CurrentSea = 3
-    else
-        local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-        if locs then
-            if locs:FindFirstChild("Tiki Outpost") or locs:FindFirstChild("Castle on the Sea") or locs:FindFirstChild("Haunted Castle") then
-                Runtime.CurrentSea = 3
-            elseif locs:FindFirstChild("Kingdom of Rose") or locs:FindFirstChild("Green Zone") or locs:FindFirstChild("Cafe") then
-                Runtime.CurrentSea = 2
-            else
-                Runtime.CurrentSea = 1
-            end
-        end
-    end
-end
-DetectSea()
-
-local BossDatabase = {
-    [1] = {
-        {Name = "The Gorilla King", QuestName = "JungleQuest", QuestLvl = 3, QuestPos = CFrame.new(-1598.08, 35.55, 153.37), BossPos = CFrame.new(-1129.88, 40.46, -525.42)},
-        {Name = "Bobby", QuestName = "BuggyQuest1", QuestLvl = 3, QuestPos = CFrame.new(-1141.07, 4.10, 3831.54), BossPos = CFrame.new(-1140.08, 14.80, 4322.92)},
-        {Name = "Yeti", QuestName = "SnowQuest", QuestLvl = 3, QuestPos = CFrame.new(1389.74, 88.15, -1298.90), BossPos = CFrame.new(1201.64, 144.57, -1550.06)},
-        {Name = "Mob Leader", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-2844.73, 7.42, 5356.67)},
-        {Name = "Vice Admiral", QuestName = "MarineQuest2", QuestLvl = 2, QuestPos = CFrame.new(-5039.58, 27.35, 4324.68), BossPos = CFrame.new(-5006.40, 28.65, 4352.55)},
-        {Name = "Warden", QuestName = "ImpelQuest", QuestLvl = 1, QuestPos = CFrame.new(5191.86, 2.84, 686.44), BossPos = CFrame.new(5278.04, 2.15, 944.10)},
-        {Name = "Chief Warden", QuestName = "ImpelQuest", QuestLvl = 2, QuestPos = CFrame.new(5191.86, 2.84, 686.44), BossPos = CFrame.new(5278.04, 2.15, 944.10)},
-        {Name = "Swan", QuestName = "ImpelQuest", QuestLvl = 3, QuestPos = CFrame.new(5191.86, 2.84, 686.44), BossPos = CFrame.new(5278.04, 2.15, 944.10)},
-        {Name = "Magma Admiral", QuestName = "MagmaQuest", QuestLvl = 3, QuestPos = CFrame.new(-5313.37, 10.95, 8515.29), BossPos = CFrame.new(-5530.12, 22.88, 8859.98)},
-        {Name = "Fishman Lord", QuestName = "FishmanQuest", QuestLvl = 3, QuestPos = CFrame.new(61122.65, 18.49, 1569.39), BossPos = CFrame.new(61350.15, 31.06, 1095.78)},
-        {Name = "Wysper", QuestName = "SkyExp1Quest", QuestLvl = 3, QuestPos = CFrame.new(-7859.09, 5544.19, -381.47), BossPos = CFrame.new(-7925.48, 5550.96, -636.18)},
-        {Name = "Thunder God", QuestName = "SkyExp2Quest", QuestLvl = 3, QuestPos = CFrame.new(-7906.81, 5634.66, -1411.99), BossPos = CFrame.new(-7751.45, 5606.81, -2315.61)},
-        {Name = "Cyborg", QuestName = "FountainQuest", QuestLvl = 3, QuestPos = CFrame.new(5259.81, 37.35, 4050.02), BossPos = CFrame.new(6094.02, 73.77, 3825.73)},
-        {Name = "Saber Expert", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-1458.89, 29.85, -50.63)},
-    },
-    [2] = {
-        {Name = "Diamond", QuestName = "Area1Quest", QuestLvl = 3, QuestPos = CFrame.new(-429.54, 71.76, 1836.18), BossPos = CFrame.new(-1736.27, 198.63, -236.41)},
-        {Name = "Jeremy", QuestName = "Area2Quest", QuestLvl = 3, QuestPos = CFrame.new(632.69, 73.10, 918.66), BossPos = CFrame.new(2099.88, 448.93, 853.20)},
-        {Name = "Fajita", QuestName = "MarineQuest3", QuestLvl = 3, QuestPos = CFrame.new(-2440.79, 71.71, -3216.06), BossPos = CFrame.new(-2172.74, 103.32, -4015.03)},
-        {Name = "Don Swan", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(2288.80, 15.19, 863.03)},
-        {Name = "Smoke Admiral", QuestName = "IceSideQuest", QuestLvl = 3, QuestPos = CFrame.new(-6064.06, 15.24, -4902.97), BossPos = CFrame.new(-5078.08, 24.51, -5352.66)},
-        {Name = "Cursed Captain", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(912.01, 181.09, 33422.39)},
-        {Name = "Darkbeard", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(3780.03, 22.65, -3498.58)},
-        {Name = "Order", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-6221.15, 16.29, -5045.24)},
-        {Name = "Awakened Ice Admiral", QuestName = "FrostQuest", QuestLvl = 3, QuestPos = CFrame.new(5667.65, 26.79, -6486.08), BossPos = CFrame.new(6473.55, 297.23, -6944.51)},
-        {Name = "Tide Keeper", QuestName = "ForgottenQuest", QuestLvl = 3, QuestPos = CFrame.new(-3054.44, 235.54, -10142.81), BossPos = CFrame.new(-3711.98, 76.96, -11469.56)},
-    },
-    [3] = {
-        {Name = "Stone", QuestName = "PiratePortQuest", QuestLvl = 3, QuestPos = CFrame.new(-290.07, 42.90, 5581.58), BossPos = CFrame.new(-1049.12, 40.00, 6791.17)},
-        {Name = "Island Empress", QuestName = "AmazonQuest2", QuestLvl = 3, QuestPos = CFrame.new(5448.86, 601.51, 751.13), BossPos = CFrame.new(5713.98, 601.92, 202.75)},
-        {Name = "Kilo Admiral", QuestName = "MarineTreeIsland", QuestLvl = 3, QuestPos = CFrame.new(2180.54, 27.81, -6741.54), BossPos = CFrame.new(2889.61, 423.55, -7233.22)},
-        {Name = "Captain Elephant", QuestName = "DeepForestIsland", QuestLvl = 3, QuestPos = CFrame.new(-13234.04, 331.48, -7625.40), BossPos = CFrame.new(-13376.75, 319.38, -8421.37)},
-        {Name = "Beautiful Pirate", QuestName = "DeepForestIsland2", QuestLvl = 3, QuestPos = CFrame.new(-12680.38, 389.97, -9902.01), BossPos = CFrame.new(5312.36, 22.56, -10.15)},
-        {Name = "Cake Queen", QuestName = "IceCreamIslandQuest", QuestLvl = 3, QuestPos = CFrame.new(-820.64, 65.81, -10965.79), BossPos = CFrame.new(-709.31, 381.60, -11150.90)},
-        {Name = "Longma", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-10238.88, 389.79, -9549.79)},
-        {Name = "Soul Reaper", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-9570.03, 315.93, 6726.89)},
-        {Name = "Cake Prince", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-2151.82, 70.01, -12128.45)},
-        {Name = "Dough King", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-2151.82, 70.01, -12128.45)},
-        {Name = "rip_indra True Form", QuestName = nil, QuestLvl = nil, QuestPos = nil, BossPos = CFrame.new(-5344.82, 423.99, -2725.09)},
-    }
-}
-
-local QuestDatabase = {
-    [1] = {
-        {Min = 1, Max = 9, Mob = "Bandit", QuestName = "BanditQuest1", QuestLvl = 1, QuestPos = CFrame.new(1059.37, 15.44, 1550.42), MobPos = CFrame.new(1145.0, 17.0, 1634.0)},
-        {Min = 10, Max = 14, Mob = "Monkey", QuestName = "JungleQuest", QuestLvl = 1, QuestPos = CFrame.new(-1598.08, 35.55, 153.37), MobPos = CFrame.new(-1448.51, 67.85, 11.46)},
-        {Min = 15, Max = 29, Mob = "Gorilla", QuestName = "JungleQuest", QuestLvl = 2, QuestPos = CFrame.new(-1598.08, 35.55, 153.37), MobPos = CFrame.new(-1129.88, 40.46, -525.42)},
-        {Min = 30, Max = 39, Mob = "Pirate", QuestName = "BuggyQuest1", QuestLvl = 1, QuestPos = CFrame.new(-1141.07, 4.10, 3831.54), MobPos = CFrame.new(-1103.51, 13.75, 3896.09)},
-        {Min = 40, Max = 59, Mob = "Brute", QuestName = "BuggyQuest1", QuestLvl = 2, QuestPos = CFrame.new(-1141.07, 4.10, 3831.54), MobPos = CFrame.new(-1140.08, 14.80, 4322.92)},
-        {Min = 60, Max = 74, Mob = "Desert Bandit", QuestName = "DesertQuest", QuestLvl = 1, QuestPos = CFrame.new(894.48, 5.14, 4392.43), MobPos = CFrame.new(924.79, 6.44, 4481.58)},
-        {Min = 75, Max = 89, Mob = "Desert Officer", QuestName = "DesertQuest", QuestLvl = 2, QuestPos = CFrame.new(894.48, 5.14, 4392.43), MobPos = CFrame.new(1608.28, 8.61, 4371.00)},
-        {Min = 90, Max = 99, Mob = "Snow Bandit", QuestName = "SnowQuest", QuestLvl = 1, QuestPos = CFrame.new(1389.74, 88.15, -1298.90), MobPos = CFrame.new(1354.34, 87.27, -1393.94)},
-        {Min = 100, Max = 119, Mob = "Snowman", QuestName = "SnowQuest", QuestLvl = 2, QuestPos = CFrame.new(1389.74, 88.15, -1298.90), MobPos = CFrame.new(1201.64, 144.57, -1550.06)},
-        {Min = 120, Max = 149, Mob = "Chief Petty Officer", QuestName = "MarineQuest2", QuestLvl = 1, QuestPos = CFrame.new(-5039.58, 27.35, 4324.68), MobPos = CFrame.new(-4881.23, 22.65, 4273.75)},
-        {Min = 150, Max = 174, Mob = "Sky Bandit", QuestName = "SkyQuest", QuestLvl = 1, QuestPos = CFrame.new(-4839.53, 716.36, -2619.44), MobPos = CFrame.new(-4953.20, 295.74, -2899.22)},
-        {Min = 175, Max = 189, Mob = "Dark Master", QuestName = "SkyQuest", QuestLvl = 2, QuestPos = CFrame.new(-4839.53, 716.36, -2619.44), MobPos = CFrame.new(-5259.84, 391.39, -2229.03)},
-        {Min = 190, Max = 209, Mob = "Prisoner", QuestName = "PrisonerQuest", QuestLvl = 1, QuestPos = CFrame.new(5308.93, 1.65, 475.12), MobPos = CFrame.new(5098.97, -0.32, 474.23)},
-        {Min = 210, Max = 249, Mob = "Dangerous Prisoner", QuestName = "PrisonerQuest", QuestLvl = 2, QuestPos = CFrame.new(5308.93, 1.65, 475.12), MobPos = CFrame.new(5654.56, 15.63, 866.29)},
-        {Min = 250, Max = 274, Mob = "Toga Warrior", QuestName = "ColosseumQuest", QuestLvl = 1, QuestPos = CFrame.new(-1580.04, 6.35, -2986.47), MobPos = CFrame.new(-1820.21, 51.68, -2740.66)},
-        {Min = 275, Max = 299, Mob = "Gladiator", QuestName = "ColosseumQuest", QuestLvl = 2, QuestPos = CFrame.new(-1580.04, 6.35, -2986.47), MobPos = CFrame.new(-1292.84, 56.38, -3339.03)},
-        {Min = 300, Max = 324, Mob = "Military Soldier", QuestName = "MagmaQuest", QuestLvl = 1, QuestPos = CFrame.new(-5313.37, 10.95, 8515.29), MobPos = CFrame.new(-5411.16, 11.08, 8454.29)},
-        {Min = 325, Max = 374, Mob = "Military Spy", QuestName = "MagmaQuest", QuestLvl = 2, QuestPos = CFrame.new(-5313.37, 10.95, 8515.29), MobPos = CFrame.new(-5802.86, 86.26, 8828.85)},
-        {Min = 375, Max = 399, Mob = "Fishman Warrior", QuestName = "FishmanQuest", QuestLvl = 1, QuestPos = CFrame.new(61122.65, 18.49, 1569.39), MobPos = CFrame.new(60878.30, 18.48, 1543.75)},
-        {Min = 400, Max = 449, Mob = "Fishman Commando", QuestName = "FishmanQuest", QuestLvl = 2, QuestPos = CFrame.new(61122.65, 18.49, 1569.39), MobPos = CFrame.new(61922.63, 18.48, 1493.93)},
-        {Min = 450, Max = 474, Mob = "God's Guard", QuestName = "SkyExp1Quest", QuestLvl = 1, QuestPos = CFrame.new(-4721.88, 843.87, -1949.96), MobPos = CFrame.new(-4710.04, 845.27, -1927.30)},
-        {Min = 475, Max = 524, Mob = "Shanda", QuestName = "SkyExp1Quest", QuestLvl = 2, QuestPos = CFrame.new(-7859.09, 5544.19, -381.47), MobPos = CFrame.new(-7678.48, 5566.40, -497.21)},
-        {Min = 525, Max = 549, Mob = "Royal Squad", QuestName = "SkyExp2Quest", QuestLvl = 1, QuestPos = CFrame.new(-7906.81, 5634.66, -1411.99), MobPos = CFrame.new(-7624.25, 5658.13, -1467.35)},
-        {Min = 550, Max = 624, Mob = "Royal Soldier", QuestName = "SkyExp2Quest", QuestLvl = 2, QuestPos = CFrame.new(-7906.81, 5634.66, -1411.99), MobPos = CFrame.new(-7836.75, 5645.66, -1790.62)},
-        {Min = 625, Max = 649, Mob = "Galley Pirate", QuestName = "FountainQuest", QuestLvl = 1, QuestPos = CFrame.new(5259.81, 37.35, 4050.02), MobPos = CFrame.new(5551.02, 78.90, 3930.41)},
-        {Min = 650, Max = 700, Mob = "Galley Captain", QuestName = "FountainQuest", QuestLvl = 2, QuestPos = CFrame.new(5259.81, 37.35, 4050.02), MobPos = CFrame.new(5441.95, 42.50, 4950.09)},
-    },
-    [2] = {
-        {Min = 700, Max = 724, Mob = "Raider", QuestName = "Area1Quest", QuestLvl = 1, QuestPos = CFrame.new(-429.54, 71.76, 1836.18), MobPos = CFrame.new(-728.32, 52.77, 2345.77)},
-        {Min = 725, Max = 774, Mob = "Mercenary", QuestName = "Area1Quest", QuestLvl = 2, QuestPos = CFrame.new(-429.54, 71.76, 1836.18), MobPos = CFrame.new(-1004.32, 80.15, 1424.61)},
-        {Min = 775, Max = 799, Mob = "Swan Pirate", QuestName = "Area2Quest", QuestLvl = 1, QuestPos = CFrame.new(638.43, 71.76, 918.28), MobPos = CFrame.new(1068.66, 137.61, 1322.10)},
-        {Min = 800, Max = 874, Mob = "Factory Staff", QuestName = "Area2Quest", QuestLvl = 2, QuestPos = CFrame.new(632.69, 73.10, 918.66), MobPos = CFrame.new(73.07, 81.86, -27.47)},
-        {Min = 875, Max = 899, Mob = "Marine Lieutenant", QuestName = "MarineQuest3", QuestLvl = 1, QuestPos = CFrame.new(-2440.79, 71.71, -3216.06), MobPos = CFrame.new(-2821.37, 75.89, -3070.08)},
-        {Min = 900, Max = 949, Mob = "Marine Captain", QuestName = "MarineQuest3", QuestLvl = 2, QuestPos = CFrame.new(-2440.79, 71.71, -3216.06), MobPos = CFrame.new(-1861.23, 80.17, -3254.69)},
-        {Min = 950, Max = 974, Mob = "Zombie", QuestName = "ZombieQuest", QuestLvl = 1, QuestPos = CFrame.new(-5497.06, 47.59, -795.23), MobPos = CFrame.new(-5657.77, 78.96, -928.68)},
-        {Min = 975, Max = 999, Mob = "Vampire", QuestName = "ZombieQuest", QuestLvl = 2, QuestPos = CFrame.new(-5497.06, 47.59, -795.23), MobPos = CFrame.new(-6037.66, 32.18, -1340.65)},
-        {Min = 1000, Max = 1049, Mob = "Snow Trooper", QuestName = "SnowMountainQuest", QuestLvl = 1, QuestPos = CFrame.new(609.85, 400.11, -5372.25), MobPos = CFrame.new(549.14, 427.38, -5563.69)},
-        {Min = 1050, Max = 1099, Mob = "Winter Warrior", QuestName = "SnowMountainQuest", QuestLvl = 2, QuestPos = CFrame.new(609.85, 400.11, -5372.25), MobPos = CFrame.new(1142.74, 475.63, -5199.41)},
-        {Min = 1100, Max = 1124, Mob = "Lab Subordinate", QuestName = "IceSideQuest", QuestLvl = 1, QuestPos = CFrame.new(-6064.06, 15.24, -4902.97), MobPos = CFrame.new(-5707.47, 15.95, -4513.39)},
-        {Min = 1125, Max = 1174, Mob = "Horned Warrior", QuestName = "IceSideQuest", QuestLvl = 2, QuestPos = CFrame.new(-6064.06, 15.24, -4902.97), MobPos = CFrame.new(-6341.36, 15.95, -5723.16)},
-        {Min = 1175, Max = 1199, Mob = "Magma Ninja", QuestName = "FireSideQuest", QuestLvl = 1, QuestPos = CFrame.new(-5428.03, 15.06, -5299.43), MobPos = CFrame.new(-5449.67, 76.65, -5808.20)},
-        {Min = 1200, Max = 1249, Mob = "Lava Pirate", QuestName = "FireSideQuest", QuestLvl = 2, QuestPos = CFrame.new(-5428.03, 15.06, -5299.43), MobPos = CFrame.new(-5213.33, 49.73, -4701.45)},
-        {Min = 1250, Max = 1274, Mob = "Ship Deckhand", QuestName = "ShipQuest1", QuestLvl = 1, QuestPos = CFrame.new(1037.80, 125.09, 32911.60), MobPos = CFrame.new(1212.01, 150.79, 33059.24)},
-        {Min = 1275, Max = 1299, Mob = "Ship Engineer", QuestName = "ShipQuest1", QuestLvl = 2, QuestPos = CFrame.new(1037.80, 125.09, 32911.60), MobPos = CFrame.new(919.47, 43.54, 32779.96)},
-        {Min = 1300, Max = 1324, Mob = "Ship Steward", QuestName = "ShipQuest2", QuestLvl = 1, QuestPos = CFrame.new(968.80, 125.09, 33244.12), MobPos = CFrame.new(919.43, 129.59, 33436.03)},
-        {Min = 1325, Max = 1349, Mob = "Ship Officer", QuestName = "ShipQuest2", QuestLvl = 2, QuestPos = CFrame.new(968.80, 125.09, 33244.12), MobPos = CFrame.new(1036.01, 181.43, 33315.72)},
-        {Min = 1350, Max = 1374, Mob = "Arctic Warrior", QuestName = "FrostQuest", QuestLvl = 1, QuestPos = CFrame.new(5667.65, 26.79, -6486.08), MobPos = CFrame.new(5966.24, 62.97, -6179.38)},
-        {Min = 1375, Max = 1424, Mob = "Snow Lurker", QuestName = "FrostQuest", QuestLvl = 2, QuestPos = CFrame.new(5667.65, 26.79, -6486.08), MobPos = CFrame.new(5407.07, 69.19, -6880.88)},
-        {Min = 1425, Max = 1449, Mob = "Sea Soldier", QuestName = "ForgottenQuest", QuestLvl = 1, QuestPos = CFrame.new(-3054.44, 235.54, -10142.81), MobPos = CFrame.new(-3028.22, 64.67, -9775.42)},
-        {Min = 1450, Max = 1500, Mob = "Water Fighter", QuestName = "ForgottenQuest", QuestLvl = 2, QuestPos = CFrame.new(-3054.44, 235.55, -10142.81), MobPos = CFrame.new(-3352.90, 285.01, -10534.84)},
-    },
-    [3] = {
-        {Min = 1500, Max = 1524, Mob = "Pirate Millionaire", QuestName = "PiratePortQuest", QuestLvl = 1, QuestPos = CFrame.new(-290.07, 42.90, 5581.58), MobPos = CFrame.new(-245.99, 47.30, 5584.10)},
-        {Min = 1525, Max = 1574, Mob = "Pistol Billionaire", QuestName = "PiratePortQuest", QuestLvl = 2, QuestPos = CFrame.new(-290.07, 42.90, 5581.58), MobPos = CFrame.new(-187.33, 86.23, 6013.51)},
-        {Min = 1575, Max = 1599, Mob = "Dragon Crew Warrior", QuestName = "AmazonQuest", QuestLvl = 1, QuestPos = CFrame.new(5832.83, 51.68, -1101.51), MobPos = CFrame.new(6141.14, 51.35, -1340.73)},
-        {Min = 1600, Max = 1624, Mob = "Dragon Crew Archer", QuestName = "AmazonQuest", QuestLvl = 2, QuestPos = CFrame.new(5832.83, 51.68, -1101.51), MobPos = CFrame.new(6616.41, 441.76, 446.04)},
-        {Min = 1625, Max = 1649, Mob = "Female Islander", QuestName = "AmazonQuest2", QuestLvl = 1, QuestPos = CFrame.new(5448.86, 601.51, 751.13), MobPos = CFrame.new(4685.25, 735.80, 815.34)},
-        {Min = 1650, Max = 1699, Mob = "Giant Islander", QuestName = "AmazonQuest2", QuestLvl = 2, QuestPos = CFrame.new(5448.86, 601.51, 751.13), MobPos = CFrame.new(4729.09, 590.43, -36.97)},
-        {Min = 1700, Max = 1724, Mob = "Marine Commodore", QuestName = "MarineTreeIsland", QuestLvl = 1, QuestPos = CFrame.new(2180.54, 27.81, -6741.54), MobPos = CFrame.new(2286.00, 73.13, -7159.80)},
-        {Min = 1725, Max = 1774, Mob = "Marine Rear Admiral", QuestName = "MarineTreeIsland", QuestLvl = 2, QuestPos = CFrame.new(2180.54, 27.81, -6741.54), MobPos = CFrame.new(3656.77, 160.52, -7001.59)},
-        {Min = 1775, Max = 1799, Mob = "Fishman Raider", QuestName = "DeepForestIsland3", QuestLvl = 1, QuestPos = CFrame.new(-10581.65, 330.87, -8761.18), MobPos = CFrame.new(-10407.52, 331.76, -8368.51)},
-        {Min = 1800, Max = 1824, Mob = "Fishman Captain", QuestName = "DeepForestIsland3", QuestLvl = 2, QuestPos = CFrame.new(-10581.65, 330.87, -8761.18), MobPos = CFrame.new(-10994.70, 352.38, -9002.11)},
-        {Min = 1825, Max = 1849, Mob = "Forest Pirate", QuestName = "DeepForestIsland", QuestLvl = 1, QuestPos = CFrame.new(-13234.04, 331.48, -7625.40), MobPos = CFrame.new(-13479.39, 332.40, -7769.51)},
-        {Min = 1850, Max = 1899, Mob = "Mythological Pirate", QuestName = "DeepForestIsland", QuestLvl = 2, QuestPos = CFrame.new(-13234.04, 331.48, -7625.40), MobPos = CFrame.new(-13680.60, 501.08, -6991.18)},
-        {Min = 1900, Max = 1924, Mob = "Jungle Pirate", QuestName = "DeepForestIsland2", QuestLvl = 1, QuestPos = CFrame.new(-12680.38, 389.97, -9902.01), MobPos = CFrame.new(-12256.16, 331.73, -10485.83)},
-        {Min = 1925, Max = 1974, Mob = "Musketeer Pirate", QuestName = "DeepForestIsland2", QuestLvl = 2, QuestPos = CFrame.new(-12680.38, 389.97, -9902.01), MobPos = CFrame.new(-13457.90, 391.54, -9859.17)},
-        {Min = 1975, Max = 1999, Mob = "Reborn Skeleton", QuestName = "HauntedQuest1", QuestLvl = 1, QuestPos = CFrame.new(-9479.21, 141.21, 5566.09), MobPos = CFrame.new(-8763.72, 165.72, 6159.86)},
-        {Min = 2000, Max = 2024, Mob = "Living Zombie", QuestName = "HauntedQuest1", QuestLvl = 2, QuestPos = CFrame.new(-9479.21, 141.21, 5566.09), MobPos = CFrame.new(-10144.13, 138.65, 5838.08)},
-        {Min = 2025, Max = 2049, Mob = "Demonic Soul", QuestName = "HauntedQuest2", QuestLvl = 1, QuestPos = CFrame.new(-9516.99, 172.01, 6078.46), MobPos = CFrame.new(-9505.87, 172.10, 6158.99)},
-        {Min = 2050, Max = 2074, Mob = "Posessed Mummy", QuestName = "HauntedQuest2", QuestLvl = 2, QuestPos = CFrame.new(-9516.99, 172.01, 6078.46), MobPos = CFrame.new(-9582.02, 6.25, 6205.47)},
-        {Min = 2075, Max = 2099, Mob = "Peanut Scout", QuestName = "NutsIslandQuest", QuestLvl = 1, QuestPos = CFrame.new(-2104.39, 38.10, -10194.21), MobPos = CFrame.new(-2143.24, 47.72, -10029.99)},
-        {Min = 2100, Max = 2124, Mob = "Peanut President", QuestName = "NutsIslandQuest", QuestLvl = 2, QuestPos = CFrame.new(-2104.39, 38.10, -10194.21), MobPos = CFrame.new(-1859.35, 38.10, -10422.42)},
-        {Min = 2125, Max = 2149, Mob = "Ice Cream Chef", QuestName = "IceCreamIslandQuest", QuestLvl = 1, QuestPos = CFrame.new(-820.64, 65.81, -10965.79), MobPos = CFrame.new(-640.31, 126.95, -11062.08)},
-        {Min = 2150, Max = 2199, Mob = "Ice Cream Commander", QuestName = "IceCreamIslandQuest", QuestLvl = 2, QuestPos = CFrame.new(-820.64, 65.81, -10965.79), MobPos = CFrame.new(-558.06, 126.95, -11290.77)},
-        {Min = 2200, Max = 2224, Mob = "Cookie Crafter", QuestName = "CakeQuest1", QuestLvl = 1, QuestPos = CFrame.new(-2021.32, 37.79, -12028.72), MobPos = CFrame.new(-2374.13, 37.79, -12125.30)},
-        {Min = 2225, Max = 2249, Mob = "Cake Guard", QuestName = "CakeQuest1", QuestLvl = 2, QuestPos = CFrame.new(-2021.32, 37.79, -12028.72), MobPos = CFrame.new(-1598.30, 43.77, -12244.58)},
-        {Min = 2250, Max = 2274, Mob = "Baking Staff", QuestName = "CakeQuest2", QuestLvl = 1, QuestPos = CFrame.new(-1927.91, 37.79, -12842.53), MobPos = CFrame.new(-1887.80, 77.61, -12998.35)},
-        {Min = 2275, Max = 2299, Mob = "Head Baker", QuestName = "CakeQuest2", QuestLvl = 2, QuestPos = CFrame.new(-1927.91, 37.79, -12842.53), MobPos = CFrame.new(-2216.18, 82.88, -12869.29)},
-        {Min = 2300, Max = 2324, Mob = "Cocoa Warrior", QuestName = "ChocQuest1", QuestLvl = 1, QuestPos = CFrame.new(233.22, 29.87, -12201.23), MobPos = CFrame.new(-21.55, 80.57, -12352.38)},
-        {Min = 2325, Max = 2349, Mob = "Chocolate Bar Battler", QuestName = "ChocQuest1", QuestLvl = 2, QuestPos = CFrame.new(233.22, 29.87, -12201.23), MobPos = CFrame.new(582.59, 77.18, -12463.16)},
-        {Min = 2350, Max = 2374, Mob = "Sweet Thief", QuestName = "ChocQuest2", QuestLvl = 1, QuestPos = CFrame.new(150.50, 30.69, -12774.50), MobPos = CFrame.new(165.18, 76.05, -12600.83)},
-        {Min = 2375, Max = 2399, Mob = "Candy Rebel", QuestName = "ChocQuest2", QuestLvl = 2, QuestPos = CFrame.new(150.50, 30.69, -12774.50), MobPos = CFrame.new(134.86, 77.24, -12876.54)},
-        {Min = 2400, Max = 2424, Mob = "Candy Pirate", QuestName = "CandyQuest1", QuestLvl = 1, QuestPos = CFrame.new(-1150.04, 20.37, -14446.33), MobPos = CFrame.new(-1310.50, 26.01, -14562.40)},
-        {Min = 2425, Max = 2449, Mob = "Snow Demon", QuestName = "CandyQuest1", QuestLvl = 2, QuestPos = CFrame.new(-1150.04, 20.37, -14446.33), MobPos = CFrame.new(-880.20, 71.25, -14538.60)},
-        {Min = 2450, Max = 2474, Mob = "Isle Outlaw", QuestName = "TikiQuest1", QuestLvl = 1, QuestPos = CFrame.new(-16547.74, 61.13, -173.41), MobPos = CFrame.new(-16442.81, 116.13, -264.46)},
-        {Min = 2475, Max = 2499, Mob = "Island Boy", QuestName = "TikiQuest1", QuestLvl = 2, QuestPos = CFrame.new(-16547.74, 61.13, -173.41), MobPos = CFrame.new(-16901.26, 84.06, -192.88)},
-        {Min = 2500, Max = 2524, Mob = "Sun-kissed Warrior", QuestName = "TikiQuest2", QuestLvl = 1, QuestPos = CFrame.new(-16539.08, 55.69, 1051.57), MobPos = CFrame.new(-16349.88, 92.09, 1123.41)},
-        {Min = 2525, Max = 2549, Mob = "Isle Champion", QuestName = "TikiQuest2", QuestLvl = 2, QuestPos = CFrame.new(-16539.08, 55.69, 1051.57), MobPos = CFrame.new(-16641.68, 235.78, 1031.28)},
-        {Min = 2550, Max = 2574, Mob = "Serpent Hunter", QuestName = "TikiQuest3", QuestLvl = 1, QuestPos = CFrame.new(-16665.19, 104.59, 1579.69), MobPos = CFrame.new(-16587.89, 154.21, 1533.40)},
-        {Min = 2575, Max = 3000, Mob = "Skull Slayer", QuestName = "TikiQuest3", QuestLvl = 2, QuestPos = CFrame.new(-16665.19, 104.59, 1579.69), MobPos = CFrame.new(-16885.20, 114.12, 1627.94)},
-    }
-}
-
-local IslandLocations = {
-    [1] = {
-        ["Starter Island"] = CFrame.new(1071.28, 16.30, 1426.86),
-        ["Jungle"] = CFrame.new(-1612.79, 36.85, 149.12),
-        ["Pirate Village"] = CFrame.new(-1181.30, 4.75, 3803.54),
-        ["Desert"] = CFrame.new(944.15, 20.91, 4373.30),
-        ["Middle Town"] = CFrame.new(-655.82, 7.88, 1436.67),
-        ["Frozen Village"] = CFrame.new(1347.80, 104.66, -1319.73),
-        ["Marine Fortress"] = CFrame.new(-4505.37, 20.68, 4260.55),
-        ["Skylands Lower"] = CFrame.new(-4841.83, 717.66, -2623.96),
-        ["Skylands Upper"] = CFrame.new(-7894.62, 5547.14, -380.29),
-        ["Prison"] = CFrame.new(4875.33, 5.65, 734.85),
-        ["Colosseum"] = CFrame.new(-1427.62, 7.28, -2792.77),
-        ["Magma Village"] = CFrame.new(-5231.75, 8.61, 8467.87),
-        ["Underwater City"] = CFrame.new(61163.85, 11.67, 1819.78),
-        ["Fountain City"] = CFrame.new(5127.12, 59.50, 4105.44),
-    },
-    [2] = {
-        ["Kingdom of Rose"] = CFrame.new(-425.68, 72.06, 1835.42),
-        ["Cafe"] = CFrame.new(-380.47, 77.22, 255.82),
-        ["Factory Core"] = CFrame.new(448.46, 199.35, -441.38),
-        ["Green Zone"] = CFrame.new(-2448.53, 73.01, -3210.63),
-        ["Graveyard"] = CFrame.new(-5411.47, 48.51, -721.28),
-        ["Snow Mountain"] = CFrame.new(541.32, 401.02, -5297.64),
-        ["Hot and Cold"] = CFrame.new(-6026.96, 14.74, -5071.96),
-        ["Cursed Ship"] = CFrame.new(923.21, 125.09, 32885.87),
-        ["Ice Castle"] = CFrame.new(5400.40, 28.21, -6236.99),
-        ["Forgotten Island"] = CFrame.new(-3032.76, 317.89, -10075.37),
-        ["Dark Arena"] = CFrame.new(3780.03, 22.65, -3498.58),
-    },
-    [3] = {
-        ["Port Town"] = CFrame.new(-290.73, 6.72, 5343.55),
-        ["Hydra Island"] = CFrame.new(5228.88, 604.23, 345.04),
-        ["Great Tree"] = CFrame.new(2681.27, 1682.80, -7190.98),
-        ["Castle on the Sea"] = CFrame.new(-5074.45, 314.51, -2991.05),
-        ["Floating Turtle"] = CFrame.new(-13274.52, 531.82, -7579.22),
-        ["Mansion"] = CFrame.new(-12553.81, 337.19, -7495.55),
-        ["Haunted Castle"] = CFrame.new(-9515.37, 164.00, 5786.06),
-        ["Peanut Island"] = CFrame.new(-2104.39, 38.10, -10194.21),
-        ["Ice Cream Island"] = CFrame.new(-820.64, 65.81, -10965.79),
-        ["Cake Loaf"] = CFrame.new(-2009.86, 38.12, -12026.96),
-        ["Chocolate Island"] = CFrame.new(233.22, 29.87, -12201.23),
-        ["Candy Cane Island"] = CFrame.new(-1150.04, 20.37, -14446.33),
-        ["Tiki Outpost"] = CFrame.new(-16218.68, 9.08, 445.61),
-        ["Temple of Time"] = CFrame.new(28286.35, 14895.30, 102.62),
-    }
-}
-
--- // 7. Stabilized Heartbeat Mover (BodyVelocity + BodyGyro Stabilizer) //
-TrackConn(LocalPlayer.Idled, function()
-    if Config.AntiAFK then
+local secIslandTP = UI:Section(tpTab, "Island Teleport")
+for _, isle in ipairs(Islands) do
+    UI:Button(secIslandTP, isle.n, function()
         pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
+            local hrp = getHRP()
+            if hrp then hrp.CFrame = CFrame.new(isle.p + Vector3.new(0, 5, 0)) end
         end)
+        Notify("Astra Hub", "→ " .. isle.n, 2)
+    end)
+end
+
+local secPlayerTP = UI:Section(tpTab, "Player Teleport")
+local pList = {"(refresh)"}
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LP then table.insert(pList, p.Name) end
+end
+local pDrop = UI:Dropdown(secPlayerTP, "Select Player", pList, pList[1], function() end)
+
+UI:Button(secPlayerTP, "Refresh List", function()
+    -- dropdown rebuilds on re-open; this notifies user
+    Notify("Astra Hub", "Re-open dropdown to see updated list", 3)
+end)
+UI:Button(secPlayerTP, "Teleport to Player", function()
+    local name = pDrop.Get()
+    local target = Players:FindFirstChild(name)
+    if target and target.Character then
+        local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
+        if tHRP then
+            pcall(function()
+                local hrp = getHRP()
+                if hrp then hrp.CFrame = tHRP.CFrame + Vector3.new(4, 0, 0) end
+            end)
+            Notify("Astra Hub", "→ " .. name, 2)
+        end
+    end
+end)
+UI:Button(secPlayerTP, "Bring Player Here", function()
+    local name = pDrop.Get()
+    local target = Players:FindFirstChild(name)
+    if target and target.Character then
+        local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
+        local hrp  = getHRP()
+        if tHRP and hrp then
+            pcall(function() tHRP.CFrame = hrp.CFrame + Vector3.new(3, 0, 0) end)
+        end
     end
 end)
 
-local function GetChar() return LocalPlayer.Character end
-local function GetRoot()
-    local c = GetChar()
-    return c and c:FindFirstChild("HumanoidRootPart")
-end
-local function GetHum()
-    local c = GetChar()
-    return c and c:FindFirstChildOfClass("Humanoid")
-end
-local function GetLevel()
-    local d = LocalPlayer:FindFirstChild("Data")
-    local l = d and d:FindFirstChild("Level")
-    return (l and l.Value) or 1
-end
-local function HasItem(name)
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    local ch = GetChar()
-    return (bp and bp:FindFirstChild(name) ~= nil) or (ch and ch:FindFirstChild(name) ~= nil)
-end
-
-local function CleanMobName(rawName)
-    if type(rawName) ~= "string" then return "" end
-    local s = string.gsub(rawName, " %[Lv%. %d+%]", "")
-    s = string.gsub(s, " %[Boss%]", "")
-    s = string.gsub(s, "%[Lv%. %d+%]", "")
-    s = string.gsub(s, "%[Boss%]", "")
-    return string.gsub(s, "^%s*(.-)%s*$", "%1")
-end
-
-local function StopMove()
-    Runtime.MoveGoalPos = nil
-    Runtime.MoveStopOnArrive = false
-    Runtime.BringPosCF = nil
-    Runtime.BringMobName = nil
-    local root = GetRoot()
-    if root then
-        local bv = root:FindFirstChild("RedzV16_BV")
-        if bv then bv:Destroy() end
-        local bg = root:FindFirstChild("RedzV16_BG")
-        if bg then bg:Destroy() end
-    end
-end
-
-local function MoveToCFrame(targetCF, stopOnArrive)
-    if not targetCF then
-        StopMove()
-        return
-    end
-    Runtime.MoveGoalPos = targetCF.Position
-    Runtime.MoveStopOnArrive = (stopOnArrive == true)
-end
-
-TrackConn(RunService.Heartbeat, function(dt)
+local secUtilTP = UI:Section(tpTab, "Server Utility")
+UI:Button(secUtilTP, "Safe Zone", function()
     pcall(function()
-        local goalPos = Runtime.MoveGoalPos
-        local root = GetRoot()
-        local hum = GetHum()
-        if not goalPos or not root or not hum or hum.Health <= 0 then
-            if root then
-                local bv = root:FindFirstChild("RedzV16_BV")
-                if bv then bv:Destroy() end
-                local bg = root:FindFirstChild("RedzV16_BG")
-                if bg then bg:Destroy() end
+        local hrp = getHRP()
+        if hrp then hrp.CFrame = CFrame.new(290, 15, 1580) end
+    end)
+end)
+UI:Button(secUtilTP, "Server Hop", function()
+    pcall(function()
+        local res = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+        local data = HttpService:JSONDecode(res)
+        for _, srv in ipairs(data.data) do
+            if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id)
+                return
             end
-            return
         end
-
-        if hum.Sit then hum.Sit = false end
-
-        local bv = root:FindFirstChild("RedzV16_BV")
-        if not bv then
-            bv = Instance.new("BodyVelocity")
-            bv.Name = "RedzV16_BV"
-            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-            bv.Velocity = Vector3.zero
-            bv.Parent = root
-        end
-        bv.Velocity = Vector3.zero
-
-        local bg = root:FindFirstChild("RedzV16_BG")
-        if not bg then
-            bg = Instance.new("BodyGyro")
-            bg.Name = "RedzV16_BG"
-            bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-            bg.P = 9e4
-            bg.CFrame = root.CFrame
-            bg.Parent = root
-        end
-
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
-
-        local curPos = root.Position
-        local rot = root.CFrame - curPos
-        local diff = goalPos - curPos
-        local dist = diff.Magnitude
-
-        if dist <= 1.8 then
-            root.CFrame = CFrame.new(goalPos) * rot
-            bg.CFrame = root.CFrame
-            if Runtime.MoveStopOnArrive then
-                Runtime.MoveGoalPos = nil
-                Runtime.MoveStopOnArrive = false
-                bv:Destroy()
-                bg:Destroy()
+        Notify("Astra Hub", "No available servers found", 3)
+    end)
+end)
+UI:Button(secUtilTP, "Low Player Server", function()
+    pcall(function()
+        local res = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+        local data = HttpService:JSONDecode(res)
+        local best, low = nil, 999
+        for _, srv in ipairs(data.data) do
+            if srv.id ~= game.JobId and srv.playing < low then
+                best, low = srv.id, srv.playing
             end
-            return
         end
+        if best then TeleportService:TeleportToPlaceInstance(game.PlaceId, best) end
+    end)
+end)
+UI:Slider(secUtilTP, "Tween Speed (x10)", 1, 30, 4, function(v) S.TweenSpeed = v / 10 end)
 
-        local speed = math.clamp(Config.TweenSpeed, 180, 330)
-        local step = math.min(dist, speed * dt)
-        local nextPos = curPos + (diff.Unit * step)
-        root.CFrame = CFrame.new(nextPos) * rot
-        bg.CFrame = root.CFrame
+-- ─────────── MISC TAB ───────────
+local miscTab = UI:Tab("Misc", "⚙")
+
+local secUtil = UI:Section(miscTab, "Utility")
+UI:Toggle(secUtil, "Anti AFK",            true,  function(v) S.AntiAFK        = v end)
+UI:Toggle(secUtil, "FPS Booster",         false, function(v)
+    S.FPSBoost = v
+    pcall(function()
+        settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Level08
+    end)
+end)
+UI:Toggle(secUtil, "Walk on Water",       false, function(v) S.WalkOnWater     = v end)
+UI:Toggle(secUtil, "Infinite Jump",       false, function(v) S.InfiniteJump    = v end)
+UI:Toggle(secUtil, "No Fall Damage",      false, function(v) S.NoFallDamage    = v end)
+
+local teamDrop = UI:Dropdown(secUtil, "Team", {"Pirates","Marines"}, "Pirates", function(v)
+    pcall(function() FireRemote("SelectTeam", v) end)
+end)
+
+local codeBox = UI:Input(secUtil, "Redeem Code", "enter code...", nil)
+UI:Button(secUtil, "Redeem Code", function()
+    local code = codeBox.Text
+    if code ~= "" then
+        FireRemote("RedeemCode", code)
+        Notify("Astra Hub", "Redeemed: " .. code, 3)
+    end
+end)
+
+local secServer = UI:Section(miscTab, "Server")
+UI:Button(secServer, "Rejoin", function()
+    TeleportService:Teleport(game.PlaceId)
+end)
+UI:Button(secServer, "White Screen (2s)", function()
+    local f = Instance.new("Frame", LP.PlayerGui)
+    f.Size = UDim2.new(1,0,1,0)
+    f.BackgroundColor3 = Color3.new(1,1,1)
+    f.BorderSizePixel = 0
+    f.ZIndex = 999
+    task.delay(2, function() pcall(function() f:Destroy() end) end)
+end)
+UI:Button(secServer, "Black Screen (2s)", function()
+    local f = Instance.new("Frame", LP.PlayerGui)
+    f.Size = UDim2.new(1,0,1,0)
+    f.BackgroundColor3 = Color3.new(0,0,0)
+    f.BorderSizePixel = 0
+    f.ZIndex = 999
+    task.delay(2, function() pcall(function() f:Destroy() end) end)
+end)
+
+local secChat = UI:Section(miscTab, "Chat / Social")
+UI:Toggle(secChat, "Chat Spammer",  false, function(v) S.ChatSpammer = v end)
+local chatBox = UI:Input(secChat, "Spam Message", "Astra Hub | discord.gg/astrahub", function(v) S.ChatSpamMsg = v end)
+UI:Toggle(secChat, "Kill Say",      false, function(v) S.KillSay     = v end)
+local killSayBox = UI:Input(secChat, "Kill Say Msg", "GG ez", function(v) S.KillSayMsg = v end)
+
+local secCfg = UI:Section(miscTab, "Config")
+UI:Button(secCfg, "Save Config", function()
+    pcall(function()
+        writefile("AstraHub_Config.json", HttpService:JSONEncode(S))
+        Notify("Astra Hub", "Config saved!", 2)
+    end)
+end)
+UI:Button(secCfg, "Load Config", function()
+    pcall(function()
+        if isfile("AstraHub_Config.json") then
+            local data = HttpService:JSONDecode(readfile("AstraHub_Config.json"))
+            for k, v in pairs(data) do S[k] = v end
+            Notify("Astra Hub", "Config loaded!", 2)
+        else
+            Notify("Astra Hub", "No config file found", 2)
+        end
+    end)
+end)
+UI:Button(secCfg, "Reset Config", function()
+    pcall(function()
+        if isfile("AstraHub_Config.json") then delfile("AstraHub_Config.json") end
+        Notify("Astra Hub", "Config reset", 2)
     end)
 end)
 
--- // 8. Multi-Language Weapon Equipper (EN & VN) //
-local ToolCategoryMatchers = {
-    ["Melee"] = {"melee", "cận chiến", "combat", "black leg", "electro", "fishman karate", "dragon breath", "superhuman", "death step", "sharkman karate", "electric claw", "dragon talon", "godhuman", "sanguine art"},
-    ["Sword"] = {"sword", "kiếm", "katana", "cutlass", "saber", "rengoku", "yama", "tushita", "cursed dual katana", "hallow scythe", "dark blade", "shark anchor"},
-    ["Blox Fruit"] = {"blox fruit", "demon fruit", "trái ác quỷ", "trái", "fruit"},
-    ["Gun"] = {"gun", "súng", "slingshot", "musket", "flintlock", "kabucha", "soul guitar", "bizarre rifle", "acidum rifle"},
+-- ─────────── ESP TAB ───────────
+local espTab = UI:Tab("ESP", "👁")
+
+local secESPMob = UI:Section(espTab, "Mob ESP")
+UI:Toggle(secESPMob, "Mob ESP",         false, function(v) S.ESPMob      = v end)
+UI:Toggle(secESPMob, "Show Name",       true,  function(v) S.ESPMobName  = v end)
+UI:Toggle(secESPMob, "Show Distance",   true,  function(v) S.ESPMobDist  = v end)
+UI:Toggle(secESPMob, "Show Health",     true,  function(v) S.ESPMobHP    = v end)
+UI:Toggle(secESPMob, "Tracers",         false, function(v) S.ESPMobTracer = v end)
+
+local secESPChest = UI:Section(espTab, "Chest ESP")
+UI:Toggle(secESPChest, "Chest ESP",     false, function(v) S.ESPChest    = v end)
+UI:Toggle(secESPChest, "Show Distance", true,  function(v) S.ESPChestDist = v end)
+
+local secESPFruitT = UI:Section(espTab, "Fruit ESP")
+UI:Toggle(secESPFruitT, "Fruit ESP",     false, function(v) S.ESPFruit    = v end)
+UI:Toggle(secESPFruitT, "Show Name",     true,  function(v) S.ESPFruitName = v end)
+UI:Toggle(secESPFruitT, "Show Distance", true,  function(v) S.ESPFruitDist = v end)
+
+local secESPIsland = UI:Section(espTab, "Island ESP")
+UI:Toggle(secESPIsland, "Island ESP",   false, function(v) S.ESPIsland   = v end)
+
+local secESPNPC = UI:Section(espTab, "NPC ESP")
+UI:Toggle(secESPNPC, "NPC ESP",         false, function(v) S.ESPNPC      = v end)
+
+local secESPCfg = UI:Section(espTab, "ESP Config")
+UI:Slider(secESPCfg, "Max Distance", 100, 5000, 2000, function(v) S.ESPMaxDist  = v end)
+UI:Slider(secESPCfg, "Text Size",     8,    24,   14, function(v) S.ESPTextSize = v end)
+
+-- ─────────── SETTINGS TAB ───────────
+local settingsTab = UI:Tab("Settings", "🔧")
+
+local secUI = UI:Section(settingsTab, "UI Settings")
+local keyOpts = {"RightShift","Insert","Delete","Home","End","F1","F2","F3","F4","F5","Backquote"}
+UI:Dropdown(secUI, "Toggle Key", keyOpts, "RightShift", function(v)
+    S.ToggleKey = Enum.KeyCode[v]
+    Notify("Astra Hub", "Toggle: " .. v, 2)
+end)
+
+local secPerf = UI:Section(settingsTab, "Performance")
+UI:Toggle(secPerf, "Performance Mode", false, function(v)
+    S.PerformanceMode = v
+    pcall(function()
+        settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Level05
+    end)
+end)
+UI:Toggle(secPerf, "Auto Execute on Rejoin", false, function(v) S.AutoExecRejoin = v end)
+
+local secCredits = UI:Section(settingsTab, "Credits")
+UI:Label(secCredits, "✦ Astra Hub  |  Blox Fruits v5.0", T.Accent)
+UI:Label(secCredits, "Discord: discord.gg/astrahub")
+UI:Label(secCredits, "Build: 2024 • Coded for Roblox executors")
+UI:Label(secCredits, "Synapse X  •  KRNL  •  Fluxus compatible")
+
+-- =============================================
+-- [[ ESP SYSTEM (Drawing) ]]
+-- =============================================
+local playerESP, mobESP, fruitESP, chestESP, islandESP = {}, {}, {}, {}, {}
+
+local rareFruits = {
+    "Dragon","Leopard","Spirit","Venom","Kitsune","Dough","Shadow",
+    "Rumble","Buddha","String","Mammoth","T-Rex","Blizzard",
 }
 
-local function DoesToolMatchCategory(tool, category)
-    if not tool or not tool:IsA("Tool") then return false end
-    local tip = string.lower(tostring(tool.ToolTip or ""))
-    local name = string.lower(tostring(tool.Name or ""))
-    local patterns = ToolCategoryMatchers[category]
-    if patterns then
-        for _, pat in ipairs(patterns) do
-            if tip == pat or string.find(tip, pat, 1, true) or string.find(name, pat, 1, true) then
-                return true
-            end
-        end
-    end
-    if category == "Blox Fruit" and (tool:GetAttribute("OriginalName") or string.find(name, "-")) then
-        return true
-    end
-    return false
+local function w2s(pos)
+    local sp, vis = Camera:WorldToViewportPoint(pos)
+    return Vector2.new(sp.X, sp.Y), vis, sp.Z
 end
 
-local LastBusoTick = 0
-local function EquipSelectedWeapon(categoryOverride, exactNameOverride)
-    local char = GetChar()
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    local hum = GetHum()
-    if not char or not bp or not hum or hum.Health <= 0 then return nil end
-
-    if Config.AutoBuso and not char:FindFirstChild("HasBuso") and (os.clock() - LastBusoTick > 3.0) then
-        LastBusoTick = os.clock()
-        task.spawn(function() InvokeCommF("Buso") end)
-    end
-
-    local held = char:FindFirstChildOfClass("Tool")
-    if exactNameOverride then
-        if held and held.Name == exactNameOverride then return held end
-        local found = bp:FindFirstChild(exactNameOverride)
-        if found and found:IsA("Tool") then
-            pcall(function() hum:EquipTool(found) end)
-            return found
-        end
-        return nil
-    end
-
-    local wanted = categoryOverride or Config.SelectedWeapon
-    if held and DoesToolMatchCategory(held, wanted) then
-        return held
-    end
-
-    local fallbackTool = nil
-    for _, item in ipairs(bp:GetChildren()) do
-        if item:IsA("Tool") then
-            if DoesToolMatchCategory(item, wanted) then
-                pcall(function() hum:EquipTool(item) end)
-                return item
-            end
-            if not fallbackTool
-                and not string.find(item.Name, "Fruit", 1, true)
-                and not item:GetAttribute("OriginalName")
-                and item.Name ~= "Special Microchip"
-                and item.Name ~= "Holy Torch"
-                and item.Name ~= "Hidden Key"
-                and item.Name ~= "God's Chalice"
-                and item.Name ~= "Fist of Darkness" then
-                fallbackTool = item
-            end
-        end
-    end
-
-    if not held and fallbackTool then
-        pcall(function() hum:EquipTool(fallbackTool) end)
-        return fallbackTool
-    end
-    return held
+local function hpColor(pct)  -- 0-100 → red-green
+    return Color3.fromRGB(math.clamp(math.floor(255 * (1 - pct/100)), 0, 255),
+                          math.clamp(math.floor(255 * pct/100),        0, 255), 30)
 end
 
-local LastSkillPulse = 0
-local function FireSkillsNow()
-    if os.clock() - LastSkillPulse < 0.4 then return end
-    LastSkillPulse = os.clock()
-    task.spawn(function()
-        local keys = {
-            {Config.SkillZ, Enum.KeyCode.Z},
-            {Config.SkillX, Enum.KeyCode.X},
-            {Config.SkillC, Enum.KeyCode.C},
-            {Config.SkillV, Enum.KeyCode.V},
-            {Config.SkillF, Enum.KeyCode.F},
-        }
-        for _, pair in ipairs(keys) do
-            if pair[1] and VirtualInputManager then
-                pcall(function()
-                    VirtualInputManager:SendKeyEvent(true, pair[2], false, game)
-                    task.wait(0.04)
-                    VirtualInputManager:SendKeyEvent(false, pair[2], false, game)
-                end)
-            end
-        end
-    end)
+local function mkText(sz)
+    local d = Drawing.new("Text")
+    d.Outline     = true
+    d.OutlineColor = Color3.fromRGB(0, 0, 0)
+    d.Size        = sz or 14
+    d.Font        = 2   -- Plex mono (executor-portable)
+    d.Visible     = false
+    d.Center      = true
+    return d
 end
 
--- // 9. Redz 4-Layer FastAttack Engine //
-local ActiveControllersList = {}
-
-local function ScanForCombatControllers()
-    table.clear(ActiveControllersList)
-    pcall(function()
-        if raw_getupvalues then
-            local ps = LocalPlayer:FindFirstChild("PlayerScripts")
-            local cfModule = ps and ps:FindFirstChild("CombatFramework")
-            if cfModule then
-                local upvals = raw_getupvalues(require(cfModule))
-                if type(upvals) == "table" then
-                    for _, v in pairs(upvals) do
-                        if type(v) == "table" and type(v.activeController) == "table" then
-                            table.insert(ActiveControllersList, v.activeController)
-                        end
-                    end
-                end
-            end
-        end
-        if raw_getgc and #ActiveControllersList == 0 then
-            for _, obj in ipairs(raw_getgc(true)) do
-                if type(obj) == "table" and rawget(obj, "timeToNextAttack") ~= nil and rawget(obj, "hitboxMagnitude") ~= nil and type(rawget(obj, "attack")) == "function" then
-                    table.insert(ActiveControllersList, obj)
-                end
-            end
-        end
-    end)
-end
-ScanForCombatControllers()
-
-local LastControllerRescan = os.clock()
-local ClickBusy = false
-
-local function ExecuteRedzFastAttack()
-    local char = GetChar()
-    local root = GetRoot()
-    if not char or not root then return false end
-
-    if os.clock() - LastControllerRescan > 15.0 then
-        LastControllerRescan = os.clock()
-        ScanForCombatControllers()
-    end
-
-    local enemies = Workspace:FindFirstChild("Enemies")
-    local bladeHits = {}
-    local partHits = {}
-    local mainPart = nil
-
-    if enemies then
-        for _, mob in ipairs(enemies:GetChildren()) do
-            local mr = mob:FindFirstChild("HumanoidRootPart")
-            local mHead = mob:FindFirstChild("Head")
-            local mTorso = mob:FindFirstChild("UpperTorso") or mob:FindFirstChild("Torso")
-            local mh = mob:FindFirstChildOfClass("Humanoid")
-            local hitPart = mr or mHead or mTorso
-            if hitPart and mh and mh.Health > 0 and (hitPart.Position - root.Position).Magnitude <= 85 then
-                if not mainPart then mainPart = hitPart end
-                table.insert(bladeHits, {mob, hitPart})
-                if mHead and mHead ~= hitPart then
-                    table.insert(bladeHits, {mob, mHead})
-                end
-                table.insert(partHits, hitPart)
-            end
-        end
-    end
-
-    if not mainPart then
-        return false
-    end
-
-    Runtime.SwingCount = Runtime.SwingCount + 1
-
-    -- 1. Net RE/RegisterAttack + RE/RegisterHit
-    pcall(function()
-        local modules = ReplicatedStorage:FindFirstChild("Modules")
-        local net = modules and modules:FindFirstChild("Net")
-        if net then
-            local regAtk = net:FindFirstChild("RE/RegisterAttack")
-            local regHit = net:FindFirstChild("RE/RegisterHit")
-            if regAtk and regHit then
-                regAtk:FireServer(0)
-                regHit:FireServer(mainPart, bladeHits)
-                if Config.SuperFastAttack then
-                    regAtk:FireServer(0)
-                    regHit:FireServer(mainPart, bladeHits)
-                end
-            end
-        end
-    end)
-
-    -- 2. Legacy RigControllerEvent
-    pcall(function()
-        local rigEvent = ReplicatedStorage:FindFirstChild("RigControllerEvent")
-        local held = char:FindFirstChildOfClass("Tool")
-        if rigEvent and held then
-            rigEvent:FireServer("weaponChange", tostring(held.Name))
-            rigEvent:FireServer("hit", partHits, 1, "")
-        end
-    end)
-
-    -- 3. CombatFramework Controller Direct Attack
-    pcall(function()
-        for _, ac in ipairs(ActiveControllersList) do
-            if type(ac) == "table" then
-                ac.timeToNextAttack = 0
-                ac.hitboxMagnitude = 85
-                ac.increment = 3
-                ac.focusStart = 0
-                ac.attacking = false
-                ac.blocking = false
-                if type(ac.attack) == "function" then
-                    ac:attack()
-                end
-            end
-        end
-    end)
-
-    -- 4. Complete Click-and-Release Cycle + Tool:Activate()
-    if not ClickBusy then
-        ClickBusy = true
-        task.spawn(function()
-            pcall(function()
-                local held = char:FindFirstChildOfClass("Tool")
-                if held then held:Activate() end
-                local camCF = Workspace.CurrentCamera and Workspace.CurrentCamera.CFrame or CFrame.new()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton1(Vector2.new(851, 158), camCF)
-                VirtualUser:Button1Down(Vector2.new(851, 158), camCF)
-                task.wait(0.015)
-                VirtualUser:Button1Up(Vector2.new(851, 158), camCF)
-            end)
-            ClickBusy = false
-        end)
-    end
-
-    return true
+local function mkLine()
+    local d = Drawing.new("Line")
+    d.Thickness = 1
+    d.Visible   = false
+    return d
 end
 
-task.spawn(function()
-    while SessionActive do
-        task.wait(Config.SuperFastAttack and 0.045 or 0.085)
-        if Config.FastAttack or Config.AutoRaidDungeon then
-            local active = Config.AutoFarmLevel or Config.AutoFarmNearest or Config.AutoFarmBosses
-                or Config.AutoFarmBone or Config.AutoFarmKatakuri or Config.AutoEliteHunter
-                or Config.AutoFactory or Config.AutoPirateRaid or Config.AutoRaidDungeon
-                or Config.AutoTerrorshark or Config.AutoGhostShip or Config.AutoTrialV4
-                or Config.AutoSaber or Config.AutoBartilo or Config.AutoRengoku
-                or Config.AutoSecondSea or Config.AutoThirdSea or Config.AutoCDK or Config.AutoSoulGuitar
-                or Config.AutoFarmMastery or (Runtime.TargetMob ~= nil)
-            if active then
-                ExecuteRedzFastAttack()
+local function hideESPTable(t)
+    for _, pool in pairs(t) do
+        if type(pool) == "table" then
+            for _, d in pairs(pool) do
+                if d.Remove then d.Visible = false end
             end
         end
     end
-end)
+end
 
--- // 10. Stepped Physics: SimulationRadius, NoClip & PosLock BringMobs //
-TrackConn(RunService.Stepped, function()
-    pcall(function()
-        local char = GetChar()
-        local root = GetRoot()
+-- fruit notified cache (prevent spam)
+local fruitNotified = {}
 
-        if raw_sethiddenproperty then
-            raw_sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-        end
+RunService.RenderStepped:Connect(function()
+    local hrp  = getHRP()
+    local hum  = getHum()
+    if not hrp or not hum or hum.Health <= 0 then return end
 
-        local anyActive = Config.NoClip or (Runtime.MoveGoalPos ~= nil) or (Runtime.TargetMob ~= nil)
-            or Config.AutoFarmLevel or Config.AutoFarmNearest or Config.AutoFarmBosses
-            or Config.AutoFarmChest or Config.AutoFarmBone or Config.AutoFarmKatakuri or Config.AutoRaidDungeon
-        if anyActive and char then
-            for _, p in ipairs(char:GetDescendants()) do
-                if p:IsA("BasePart") and p.CanCollide then
-                    p.CanCollide = false
-                end
+    local cam    = Camera
+    local maxD   = S.ESPMaxDist  or 2000
+    local tSz    = S.ESPTextSize or 14
+    local scSize = cam.ViewportSize
+
+    -- ── PLAYER ESP ──
+    if S.ESPPlayer then
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl == LP then continue end
+            local pChar = pl.Character
+            local pHRP  = pChar and pChar:FindFirstChild("HumanoidRootPart")
+            local pHum  = pChar and pChar:FindFirstChildWhichIsA("Humanoid")
+            if not pHRP or not pHum then continue end
+
+            local dist = (hrp.Position - pHRP.Position).Magnitude
+            if dist > maxD then continue end
+
+            local id = pl.UserId
+            if not playerESP[id] then
+                playerESP[id] = {
+                    name   = mkText(tSz),
+                    dist   = mkText(tSz - 2),
+                    hp     = mkText(tSz - 2),
+                    tracer = mkLine(),
+                }
             end
-        end
 
-        if Config.BringMobs and Runtime.BringPosCF and root then
-            local enemies = Workspace:FindFirstChild("Enemies")
-            if enemies then
-                local filterClean = Runtime.BringMobName and CleanMobName(Runtime.BringMobName) or nil
-                for _, mob in ipairs(enemies:GetChildren()) do
-                    if mob ~= Runtime.TargetMob then
-                        local mobClean = CleanMobName(mob.Name)
-                        if not filterClean or mobClean == filterClean or string.find(mobClean, filterClean, 1, true) then
-                            local mr = mob:FindFirstChild("HumanoidRootPart")
-                            local mh = mob:FindFirstChildOfClass("Humanoid")
-                            if mr and mh and mh.Health > 0 and (mr.Position - Runtime.BringPosCF.Position).Magnitude <= 300 then
-                                mr.CFrame = Runtime.BringPosCF
-                                mr.CanCollide = false
-                                mr.AssemblyLinearVelocity = Vector3.zero
-                                mr.AssemblyAngularVelocity = Vector3.zero
-                                mh.WalkSpeed = 0
-                                mh.JumpPower = 0
-                                mh.AutoRotate = false
-                                local anim = mh:FindFirstChild("Animator")
-                                if anim then anim:Destroy() end
-                            end
+            local e = playerESP[id]
+            local sp, vis = w2s(pHRP.Position + Vector3.new(0, 3, 0))
+            local yOff = 0
+
+            if S.ESPPlayerName then
+                e.name.Text     = pl.DisplayName
+                e.name.Color    = Color3.fromRGB(255, 70, 70)
+                e.name.Size     = tSz
+                e.name.Position = Vector2.new(sp.X, sp.Y - yOff)
+                e.name.Visible  = vis
+                yOff = yOff + tSz + 2
+            else e.name.Visible = false end
+
+            if S.ESPPlayerDist then
+                e.dist.Text     = math.floor(dist) .. "m"
+                e.dist.Color    = Color3.fromRGB(190, 190, 190)
+                e.dist.Size     = tSz - 2
+                e.dist.Position = Vector2.new(sp.X, sp.Y - yOff)
+                e.dist.Visible  = vis
+                yOff = yOff + (tSz - 2) + 2
+            else e.dist.Visible = false end
+
+            if S.ESPPlayerHP then
+                local pct = math.clamp(math.floor(pHum.Health / math.max(pHum.MaxHealth, 1) * 100), 0, 100)
+                e.hp.Text     = pct .. "% HP"
+                e.hp.Color    = hpColor(pct)
+                e.hp.Size     = tSz - 2
+                e.hp.Position = Vector2.new(sp.X, sp.Y - yOff)
+                e.hp.Visible  = vis
+            else e.hp.Visible = false end
+
+            if S.ESPPlayerTracer then
+                e.tracer.From    = Vector2.new(scSize.X * 0.5, scSize.Y)
+                e.tracer.To      = sp
+                e.tracer.Color   = Color3.fromRGB(255, 70, 70)
+                e.tracer.Visible = vis
+            else e.tracer.Visible = false end
+        end
+    else hideESPTable(playerESP) end
+
+    -- ── MOB ESP ──
+    if S.ESPMob then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if not (obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj)) then continue end
+            local oHRP = obj:FindFirstChild("HumanoidRootPart")
+            local oHum = obj:FindFirstChildWhichIsA("Humanoid")
+            if not oHRP or not oHum or oHum.Health <= 0 then continue end
+
+            local dist = (hrp.Position - oHRP.Position).Magnitude
+            if dist > math.min(maxD, 900) then continue end
+
+            local id = obj:GetDebugId()
+            if not mobESP[id] then
+                mobESP[id] = {
+                    name   = mkText(tSz - 2),
+                    dist   = mkText(tSz - 3),
+                    hp     = mkText(tSz - 3),
+                    tracer = mkLine(),
+                }
+            end
+
+            local e = mobESP[id]
+            local sp, vis = w2s(oHRP.Position + Vector3.new(0, 3.5, 0))
+            local yOff = 0
+
+            if S.ESPMobName then
+                e.name.Text     = obj.Name
+                e.name.Color    = Color3.fromRGB(60, 230, 90)
+                e.name.Size     = tSz - 2
+                e.name.Position = Vector2.new(sp.X, sp.Y - yOff)
+                e.name.Visible  = vis
+                yOff = yOff + (tSz - 2) + 2
+            else e.name.Visible = false end
+
+            if S.ESPMobDist then
+                e.dist.Text     = math.floor(dist) .. "m"
+                e.dist.Color    = Color3.fromRGB(170, 170, 170)
+                e.dist.Size     = tSz - 3
+                e.dist.Position = Vector2.new(sp.X, sp.Y - yOff)
+                e.dist.Visible  = vis
+                yOff = yOff + (tSz - 3) + 2
+            else e.dist.Visible = false end
+
+            if S.ESPMobHP then
+                local pct = math.clamp(math.floor(oHum.Health / math.max(oHum.MaxHealth, 1) * 100), 0, 100)
+                e.hp.Text     = pct .. "%"
+                e.hp.Color    = hpColor(pct)
+                e.hp.Size     = tSz - 3
+                e.hp.Position = Vector2.new(sp.X, sp.Y - yOff)
+                e.hp.Visible  = vis
+            else e.hp.Visible = false end
+
+            if S.ESPMobTracer then
+                e.tracer.From    = Vector2.new(scSize.X * 0.5, scSize.Y)
+                e.tracer.To      = sp
+                e.tracer.Color   = Color3.fromRGB(60, 230, 90)
+                e.tracer.Visible = vis
+            else e.tracer.Visible = false end
+        end
+    else hideESPTable(mobESP) end
+
+    -- ── FRUIT ESP ──
+    if S.ESPFruit then
+        local function scanFruits(folder)
+            if not folder then return end
+            for _, fruit in ipairs(folder:GetChildren()) do
+                local part = fruit:FindFirstChildWhichIsA("BasePart")
+                if not part then continue end
+                local dist = (hrp.Position - part.Position).Magnitude
+                if dist > maxD then continue end
+
+                local id = fruit:GetDebugId()
+                if not fruitESP[id] then
+                    fruitESP[id] = {
+                        name = mkText(tSz),
+                        dist = mkText(tSz - 2),
+                    }
+                end
+
+                local e = fruitESP[id]
+                local sp, vis = w2s(part.Position + Vector3.new(0, 2.5, 0))
+                local yOff = 0
+
+                if S.ESPFruitName then
+                    e.name.Text     = "🍎 " .. fruit.Name
+                    e.name.Color    = Color3.fromRGB(255, 215, 0)
+                    e.name.Size     = tSz
+                    e.name.Position = Vector2.new(sp.X, sp.Y - yOff)
+                    e.name.Visible  = vis
+                    yOff = yOff + tSz + 2
+                else e.name.Visible = false end
+
+                if S.ESPFruitDist then
+                    e.dist.Text     = math.floor(dist) .. "m"
+                    e.dist.Color    = Color3.fromRGB(200, 200, 200)
+                    e.dist.Size     = tSz - 2
+                    e.dist.Position = Vector2.new(sp.X, sp.Y - yOff)
+                    e.dist.Visible  = vis
+                else e.dist.Visible = false end
+
+                -- Rare fruit notify
+                if S.NotifyRareFruit and not fruitNotified[id] then
+                    for _, rare in ipairs(rareFruits) do
+                        if fruit.Name:find(rare) then
+                            fruitNotified[id] = true
+                            Notify("⚠ RARE FRUIT SPAWNED", fruit.Name .. " — " .. math.floor(dist) .. "m away!", 8)
+                            break
                         end
                     end
                 end
             end
         end
 
-        local map = Workspace:FindFirstChild("Map")
-        local wp = map and map:FindFirstChild("WaterBase-Plane")
-        if wp and wp:IsA("BasePart") then
-            wp.Size = Config.WalkOnWater and Vector3.new(2048, 112, 2048) or Vector3.new(2048, 80, 2048)
-        end
+        pcall(function() scanFruits(Workspace:FindFirstChild("StoredFruits")) end)
+        pcall(function() scanFruits(Workspace:FindFirstChild("Fruits")) end)
+    else hideESPTable(fruitESP) end
 
-        if Config.InfiniteEnergy and char then
-            local en = char:FindFirstChild("Energy")
-            if en and (en:IsA("IntValue") or en:IsA("NumberValue")) then
-                local maxChild = en:FindFirstChild("MaxValue")
-                en.Value = (maxChild and maxChild.Value) or 15000
+    -- ── CHEST ESP ──
+    if S.ESPChest then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if not (obj:IsA("Model") and obj.Name:lower():find("chest")) then continue end
+            local part = obj:FindFirstChildWhichIsA("BasePart")
+            if not part then continue end
+            local dist = (hrp.Position - part.Position).Magnitude
+            if dist > maxD then continue end
+
+            local id = obj:GetDebugId()
+            if not chestESP[id] then
+                chestESP[id] = {
+                    name = mkText(tSz),
+                    dist = mkText(tSz - 2),
+                }
             end
+
+            local e = chestESP[id]
+            local sp, vis = w2s(part.Position + Vector3.new(0, 2, 0))
+
+            e.name.Text     = "📦 Chest"
+            e.name.Color    = Color3.fromRGB(100, 200, 255)
+            e.name.Size     = tSz
+            e.name.Position = Vector2.new(sp.X, sp.Y - 14)
+            e.name.Visible  = vis
+
+            if S.ESPChestDist then
+                e.dist.Text     = math.floor(dist) .. "m"
+                e.dist.Color    = Color3.fromRGB(190, 190, 190)
+                e.dist.Size     = tSz - 2
+                e.dist.Position = Vector2.new(sp.X, sp.Y)
+                e.dist.Visible  = vis
+            else e.dist.Visible = false end
         end
+    else hideESPTable(chestESP) end
 
-        if Config.FullBright then
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 9e9
-            Lighting.GlobalShadows = false
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-        end
-    end)
-end)
-
--- // 11. Silent Aim Hook //
-getgenv().RedzV16_SilentAimHandler = function(self, ...)
-    if not Config.SilentAim or not Runtime.AimbotPart or not Runtime.AimbotPart.Parent then
-        return false, nil
-    end
-    local method = raw_getnamecallmethod()
-    if method ~= "FireServer" and method ~= "InvokeServer" then
-        return false, nil
-    end
-    if self == CommF then return false, nil end
-    local char = GetChar()
-    local held = char and char:FindFirstChildOfClass("Tool")
-    if not held or typeof(self) ~= "Instance" then return false, nil end
-    if not self:IsDescendantOf(held) and self ~= CommE then return false, nil end
-
-    local args = table.pack(...)
-    for i = 1, args.n do
-        if typeof(args[i]) == "Vector3" then
-            args[i] = Runtime.AimbotPart.Position
-            return true, args
-        elseif typeof(args[i]) == "CFrame" then
-            args[i] = Runtime.AimbotPart.CFrame
-            return true, args
-        end
-    end
-    return false, nil
-end
-
-pcall(function()
-    if raw_hookmetamethod and raw_getnamecallmethod and not getgenv().RedzV16_Hooked then
-        getgenv().RedzV16_Hooked = true
-        local oldNamecall
-        oldNamecall = raw_hookmetamethod(game, "__namecall", raw_newcclosure(function(self, ...)
-            if not raw_checkcaller() and getgenv().RedzV16_SilentAimHandler then
-                local ok, changed, newArgs = pcall(getgenv().RedzV16_SilentAimHandler, self, ...)
-                if ok and changed and type(newArgs) == "table" then
-                    return oldNamecall(self, table.unpack(newArgs, 1, newArgs.n))
-                end
+    -- ── ISLAND ESP ──
+    if S.ESPIsland then
+        for _, isle in ipairs(Islands) do
+            local id = isle.n
+            if not islandESP[id] then
+                islandESP[id] = mkText(tSz)
             end
-            return oldNamecall(self, ...)
-        end))
-    end
-end)
-
--- // 12. Redz Synchronous Quest Handshake & EnemySpawns Locator //
-local function GetQuestForLevel(lvlOverride)
-    local lvl = lvlOverride or GetLevel()
-    local list = QuestDatabase[Runtime.CurrentSea]
-    if not list then return nil end
-    local chosen = list[#list]
-    for _, q in ipairs(list) do
-        if lvl >= q.Min and lvl <= q.Max then
-            chosen = q
-            break
-        end
-    end
-    return chosen
-end
-
-local function IsQuestFrameVisible()
-    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-    local main = pgui and pgui:FindFirstChild("Main")
-    local qFrame = main and main:FindFirstChild("Quest")
-    return (qFrame ~= nil and qFrame.Visible == true)
-end
-
--- Checks if player currently has the right quest active on screen
-local function HasValidActiveQuest(qData)
-    if not IsQuestFrameVisible() then
-        return false
-    end
-    if Runtime.ConfirmedQuestName and Runtime.ConfirmedQuestName ~= qData.QuestName then
-        if os.clock() - Runtime.LastAbandonQuestTick > 2.0 then
-            Runtime.LastAbandonQuestTick = os.clock()
-            InvokeCommF("AbandonQuest")
-            Runtime.ConfirmedQuestName = nil
-        end
-        return false
-    end
-    Runtime.ConfirmedQuestName = qData.QuestName
-    return true
-end
-
--- Scans Workspace._WorldOrigin.EnemySpawns AND ReplicatedStorage for unstreamed mobs
-local function GetNextSpawnPatrolCFrame(mobName, fallbackCF)
-    local cleanTarget = CleanMobName(mobName)
-
-    -- Priority 1: Check ReplicatedStorage for unstreamed mob model
-    for _, child in ipairs(ReplicatedStorage:GetChildren()) do
-        if child:IsA("Model") and CleanMobName(child.Name) == cleanTarget then
-            local mr = child:FindFirstChild("HumanoidRootPart")
-            local mh = child:FindFirstChildOfClass("Humanoid")
-            if mr and (not mh or mh.Health > 0) then
-                return mr.CFrame * CFrame.new(0, Config.FarmDistanceY, 0)
-            end
-        end
-    end
-
-    -- Priority 2: Check Workspace._WorldOrigin.EnemySpawns
-    local wo = Workspace:FindFirstChild("_WorldOrigin")
-    local spawnsFolder = wo and wo:FindFirstChild("EnemySpawns")
-    if spawnsFolder then
-        local points = {}
-        for _, sp in ipairs(spawnsFolder:GetChildren()) do
-            if sp:IsA("BasePart") then
-                local spClean = CleanMobName(sp.Name)
-                if spClean == cleanTarget or string.find(spClean, cleanTarget, 1, true) then
-                    table.insert(points, sp.CFrame)
-                end
-            end
-        end
-        if #points > 0 then
-            if os.clock() - Runtime.LastSpawnPatrolTick > 4.0 then
-                Runtime.LastSpawnPatrolTick = os.clock()
-                Runtime.SpawnPatrolIdx = (Runtime.SpawnPatrolIdx % #points) + 1
-            end
-            local idx = math.clamp(Runtime.SpawnPatrolIdx, 1, #points)
-            return points[idx] * CFrame.new(0, Config.FarmDistanceY, 0)
-        end
-    end
-
-    return fallbackCF * CFrame.new(0, Config.FarmDistanceY, 0)
-end
-
-local function FindLiveEnemy(nameFilter, bossOnly, centerPos, maxRadius)
-    local enemies = Workspace:FindFirstChild("Enemies")
-    local root = GetRoot()
-    if not enemies or not root then return nil end
-
-    local refPos = centerPos or root.Position
-    local rad = maxRadius or math.huge
-    local best, minDist = nil, math.huge
-
-    for _, mob in ipairs(enemies:GetChildren()) do
-        local mr = mob:FindFirstChild("HumanoidRootPart")
-        local mh = mob:FindFirstChildOfClass("Humanoid")
-        if mr and mh and mh.Health > 0 and (mr.Position - refPos).Magnitude <= rad then
-            local mobClean = CleanMobName(mob.Name)
-            local ok = false
-            if bossOnly then
-                ok = (mob:FindFirstChild("Boss") ~= nil) or (mh.MaxHealth >= 100000) or string.find(mob.Name, "Boss") ~= nil
-            elseif type(nameFilter) == "table" then
-                for _, pat in ipairs(nameFilter) do
-                    local patClean = CleanMobName(pat)
-                    if mobClean == patClean or string.find(mobClean, patClean, 1, true) then
-                        ok = true
-                        break
-                    end
-                end
-            elseif type(nameFilter) == "string" then
-                local patClean = CleanMobName(nameFilter)
-                ok = (mobClean == patClean) or string.find(mobClean, patClean, 1, true) ~= nil
+            local dist = (hrp.Position - isle.p).Magnitude
+            if dist <= maxD * 2 then
+                local sp, vis = w2s(isle.p + Vector3.new(0, 8, 0))
+                islandESP[id].Text     = "◆ " .. isle.n .. " (" .. math.floor(dist) .. "m)"
+                islandESP[id].Color    = Color3.fromRGB(180, 140, 255)
+                islandESP[id].Size     = tSz - 1
+                islandESP[id].Position = sp
+                islandESP[id].Visible  = vis
             else
-                ok = true
+                islandESP[id].Visible = false
             end
+        end
+    else
+        for _, d in pairs(islandESP) do
+            if d.Remove then d.Visible = false end
+        end
+    end
+end)
 
-            if ok then
-                local d = (mr.Position - root.Position).Magnitude
-                if d < minDist then
-                    minDist = d
-                    best = mob
+-- =============================================
+-- [[ FLY SYSTEM ]]
+-- =============================================
+local bv, bg, flyConn
+local flyActive = false
+
+local function startFly()
+    if flyActive then return end
+    flyActive = true
+    pcall(function()
+        local char = LP.Character
+        local hrp2 = char.HumanoidRootPart
+
+        bv = Instance.new("BodyVelocity", hrp2)
+        bv.Velocity  = Vector3.new(0, 0, 0)
+        bv.MaxForce  = Vector3.new(1e5, 1e5, 1e5)
+
+        bg = Instance.new("BodyGyro", hrp2)
+        bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+        bg.P         = 1e4
+
+        flyConn = RunService.RenderStepped:Connect(function()
+            if not S.FlyEnabled then
+                pcall(function() bv:Destroy() bg:Destroy() end)
+                flyConn:Disconnect()
+                flyActive = false
+                return
+            end
+            pcall(function()
+                local spd = S.FlySpeed or 80
+                local cf  = Camera.CFrame
+                local vel = Vector3.zero
+                local UIS = UserInputService
+
+                if UIS:IsKeyDown(Enum.KeyCode.W) then vel = vel + cf.LookVector * spd end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then vel = vel - cf.LookVector * spd end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then vel = vel - cf.RightVector * spd end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then vel = vel + cf.RightVector * spd end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then      vel = vel + Vector3.yAxis * spd end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then vel = vel - Vector3.yAxis * spd end
+
+                bv.Velocity = vel
+                bg.CFrame   = cf
+            end)
+        end)
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    if S.FlyEnabled and not flyActive then startFly() end
+end)
+
+-- =============================================
+-- [[ MOVEMENT LOOPS ]]
+-- =============================================
+
+-- No clip
+RunService.Stepped:Connect(function()
+    if not S.NoClip then return end
+    pcall(function()
+        for _, p in ipairs(LP.Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
+    end)
+end)
+
+-- Infinite jump
+UserInputService.JumpRequest:Connect(function()
+    if S.InfiniteJump then
+        pcall(function() LP.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end)
+    end
+end)
+
+-- Speed hack
+RunService.Heartbeat:Connect(function()
+    if not S.SpeedHack then return end
+    pcall(function() LP.Character.Humanoid.WalkSpeed = S.Speed end)
+end)
+
+-- God mode
+RunService.Heartbeat:Connect(function()
+    if not S.GodMode then return end
+    pcall(function()
+        local hum = LP.Character and LP.Character:FindFirstChildWhichIsA("Humanoid")
+        if hum then hum.MaxHealth = math.huge; hum.Health = math.huge end
+    end)
+end)
+
+-- Anti knockback — destroy stray BodyVelocity instances
+RunService.Heartbeat:Connect(function()
+    if not S.AntiKnockback then return end
+    pcall(function()
+        local hrp2 = getHRP()
+        if not hrp2 then return end
+        for _, inst in ipairs(hrp2:GetChildren()) do
+            if (inst:IsA("BodyVelocity") or inst:IsA("BodyForce")) and inst ~= bv then
+                inst:Destroy()
+            end
+        end
+    end)
+end)
+
+-- Infinite energy / stamina
+RunService.Heartbeat:Connect(function()
+    if not (S.InfiniteEnergy or S.InfiniteStamina) then return end
+    pcall(function()
+        local stats = LP.Character and LP.Character:FindFirstChild("Stats")
+        if not stats then return end
+        for _, v in ipairs(stats:GetChildren()) do
+            if v:IsA("NumberValue") then
+                local n = v.Name:lower()
+                if S.InfiniteEnergy and (n:find("energy") or n:find("mana")) then
+                    v.Value = 99999
+                end
+                if S.InfiniteStamina and n:find("stamina") then
+                    v.Value = 99999
                 end
             end
         end
+    end)
+end)
+
+-- Walk on water
+RunService.Stepped:Connect(function()
+    if not S.WalkOnWater then return end
+    pcall(function()
+        for _, w in ipairs(Workspace:GetDescendants()) do
+            if w:IsA("BasePart") and (w.Name == "Water" or w.Name:lower():find("ocean")) then
+                w.CanCollide = true
+            end
+        end
+    end)
+end)
+
+-- No fall damage
+RunService.Heartbeat:Connect(function()
+    if not S.NoFallDamage then return end
+    pcall(function()
+        local hum = getHum()
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        end
+    end)
+end)
+
+-- Anti AFK
+LP.Idled:Connect(function()
+    if S.AntiAFK then
+        VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
     end
+end)
+
+-- Kill Aura
+RunService.Heartbeat:Connect(function()
+    if not S.KillAura then return end
+    pcall(function()
+        local hrp2 = getHRP()
+        if not hrp2 then return end
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl == LP then continue end
+            local pHRP = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+            if pHRP and (hrp2.Position - pHRP.Position).Magnitude < 65 then
+                FireRemote("UpdatePlayerActionPrimary")
+                FireRemote("Punch")
+            end
+        end
+    end)
+end)
+
+-- =============================================
+-- [[ FARM SYSTEM ]]
+-- =============================================
+
+local function findNearestMob()
+    local hrp2 = getHRP()
+    if not hrp2 then return nil end
+
+    local best, bestDist = nil, math.huge
+
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if not (obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj)) then continue end
+        local oHRP = obj:FindFirstChild("HumanoidRootPart")
+        local oHum = obj:FindFirstChildWhichIsA("Humanoid")
+        if not oHRP or not oHum or oHum.Health <= 0 then continue end
+
+        local nameMatch = S.SelectedMonster == "" or
+                          obj.Name:lower():find(S.SelectedMonster:lower()) ~= nil
+
+        if not nameMatch then continue end
+
+        local d = (hrp2.Position - oHRP.Position).Magnitude
+        if d < bestDist then
+            best, bestDist = obj, d
+        end
+    end
+
     return best
 end
 
-local function FindAnyBossInServer()
-    local specific = Config.SelectedSpecificBoss
-    local filterSpecific = (specific and specific ~= "All Bosses") and specific or nil
-
-    local liveBoss = FindLiveEnemy(filterSpecific, filterSpecific == nil)
-    if liveBoss then
-        return liveBoss, liveBoss.HumanoidRootPart.CFrame, CleanMobName(liveBoss.Name)
-    end
-
-    local seaBosses = BossDatabase[Runtime.CurrentSea] or {}
-    for _, bInfo in ipairs(seaBosses) do
-        if not filterSpecific or bInfo.Name == filterSpecific then
-            for _, child in ipairs(ReplicatedStorage:GetChildren()) do
-                if child:IsA("Model") and CleanMobName(child.Name) == bInfo.Name then
-                    local mh = child:FindFirstChildOfClass("Humanoid")
-                    local mr = child:FindFirstChild("HumanoidRootPart")
-                    if not mh or mh.Health > 0 then
-                        return nil, (mr and mr.CFrame) or bInfo.BossPos, bInfo.Name
-                    end
-                end
+local function findBoss(bossName)
+    bossName = bossName or S.SelectedBoss
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            local hum = obj:FindFirstChildWhichIsA("Humanoid")
+            if hum and hum.Health > 0 and obj.Name:lower():find(bossName:lower()) then
+                return obj
             end
         end
     end
-
-    if filterSpecific then
-        for _, bInfo in ipairs(seaBosses) do
-            if bInfo.Name == filterSpecific then
-                return nil, bInfo.BossPos, bInfo.Name
-            end
-        end
-    end
-
-    return nil, nil, nil
+    return nil
 end
 
-local function AttackAndHoverMob(mob, bringFilterName)
-    local mr = mob and mob:FindFirstChild("HumanoidRootPart")
-    local mh = mob and mob:FindFirstChildOfClass("Humanoid")
-    if not mr or not mh or mh.Health <= 0 then return end
-
-    local cleanName = bringFilterName or CleanMobName(mob.Name)
-    local isBoss = (mob:FindFirstChild("Boss") ~= nil) or (mh.MaxHealth >= 100000) or (bringFilterName == nil)
-
-    Runtime.TargetMob = mob
-    Runtime.AimbotPart = mr
-
+local function attackTarget(target)
+    if not target then return end
     pcall(function()
-        mh.WalkSpeed = 0
-        mh.JumpPower = 0
-        mr.AssemblyLinearVelocity = Vector3.zero
-        mr.CanCollide = false
+        local tHRP = target:FindFirstChild("HumanoidRootPart")
+        local tHum = target:FindFirstChildWhichIsA("Humanoid")
+        if not tHRP or not tHum or tHum.Health <= 0 then return end
+
+        local hrp2 = getHRP()
+        if not hrp2 then return end
+
+        -- Teleport adjacent
+        hrp2.CFrame = CFrame.new(tHRP.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5)))
+
+        -- Bring mob to us if enabled
+        if S.BringMob then
+            tHRP.CFrame = CFrame.new(hrp2.Position + hrp2.CFrame.LookVector * 5)
+        end
+
+        -- Fire attack remotes
+        local attackRemotes = {
+            "UpdatePlayerActionPrimary", "Punch", "UpdatePlayerAction",
+            "PlayerHit", "AttackRemote", "NormalAttack"
+        }
+        for _, rn in ipairs(attackRemotes) do FireRemote(rn, tHRP.Position) end
+
+        -- Skills
+        if S.AutoSkillSpam then
+            for i = 1, 4 do FireRemote("UseSkill", i) end
+        end
+
+        if S.FastAttack then task.wait(0.02) else task.wait(0.08) end
     end)
-
-    local hpPct = (mh.Health / math.max(1, mh.MaxHealth)) * 100
-    if Config.AutoFarmMastery and hpPct <= Config.MasteryHealthPct then
-        EquipSelectedWeapon(Config.MasteryWeapon)
-        FireSkillsNow()
-    else
-        EquipSelectedWeapon(Config.SelectedWeapon)
-    end
-
-    if not isBoss and Config.BringMobs then
-        Runtime.BringPosCF = CFrame.new(mr.Position)
-        Runtime.BringMobName = cleanName
-    else
-        Runtime.BringPosCF = nil
-        Runtime.BringMobName = nil
-    end
-
-    local hoverCF = CFrame.new(mr.Position + Vector3.new(0, Config.FarmDistanceY, 0))
-    MoveToCFrame(hoverCF, false)
-
-    local root = GetRoot()
-    if root and (root.Position - mr.Position).Magnitude <= 75 then
-        ExecuteRedzFastAttack()
-    end
 end
 
-local function FireAllInteractables(inst)
-    if not inst then return end
-    local list = inst:GetDescendants()
-    table.insert(list, 1, inst)
-    local root = GetRoot()
-    for _, v in ipairs(list) do
-        if v:IsA("ProximityPrompt") and raw_fireproximityprompt then
-            pcall(function() raw_fireproximityprompt(v) end)
-        elseif v:IsA("ClickDetector") and raw_fireclickdetector then
-            pcall(function() raw_fireclickdetector(v) end)
-        elseif v:IsA("TouchTransmitter") and raw_firetouchinterest and root and v.Parent:IsA("BasePart") then
-            pcall(function()
-                raw_firetouchinterest(root, v.Parent, 0)
-                raw_firetouchinterest(root, v.Parent, 1)
-            end)
-        end
-    end
-end
+local function takeQuest()
+    local questPos = QuestNPCs[S.SelectedIsland]
+    if not questPos then return end
+    pcall(function()
+        local hrp2 = getHRP()
+        if not hrp2 then return end
+        hrp2.CFrame = CFrame.new(questPos + Vector3.new(0, 3, 0))
+        task.wait(0.6)
 
--- // 13. 80-Case Automated Verification Suite (10x8 Modules) //
-local TestBannerLabel = nil
-
-local function Run80xVerificationSuite()
-    local totalPassed = 0
-    local totalTests = 0
-    local failedDetails = {}
-
-    local function Check(suiteName, caseIdx, cond)
-        totalTests = totalTests + 1
-        if cond then
-            totalPassed = totalPassed + 1
-        else
-            table.insert(failedDetails, suiteName .. "#" .. tostring(caseIdx))
-        end
-    end
-
-    -- 1. 10x Fruit Name Resolver Tests
-    local fruitTests = {
-        {Input = "Sand Fruit", Expect = "Trái Cát (Sand)"},
-        {Input = "Sand-Sand", Expect = "Trái Cát (Sand)"},
-        {Input = "Control Fruit", Expect = "Trái Điều Khiển (Control)"},
-        {Input = "Controller", Expect = nil},
-        {Input = "ControlScript", Expect = nil},
-        {Input = "EatController", Expect = nil},
-        {Input = "Kitsune Fruit", Expect = "Trái Cáo Chín Đuôi (Kitsune)"},
-        {Input = "Dough-Dough", Expect = "Trái Bột (Dough)"},
-        {Input = "Buddha Fruit", Expect = "Trái Phật Tổ (Buddha)"},
-        {Input = "Dragon-Dragon", Expect = "Trái Rồng (Dragon)"},
-    }
-    for i, t in ipairs(fruitTests) do
-        Check("FruitResolver", i, MatchExactFruitString(t.Input) == t.Expect)
-    end
-
-    -- 2. 10x Mock Sand Tool with "Controller" Child Inspection Tests
-    for i = 1, 10 do
-        local mockTool = Instance.new("Tool")
-        mockTool.Name = (i % 2 == 1) and "Sand Fruit" or "Light Fruit"
-        local mockHandle = Instance.new("Part", mockTool)
-        mockHandle.Name = "Handle"
-        local mockCtrl = Instance.new("LocalScript", mockTool)
-        mockCtrl.Name = "Controller"
-        local isReal, _, resolvedName = ResolveRealFruitObject(mockTool)
-        local expected = (i % 2 == 1) and "Trái Cát (Sand)" or "Trái Ánh Sáng (Light)"
-        Check("MockSandTool", i, isReal == true and resolvedName == expected)
-        mockTool:Destroy()
-    end
-
-    -- 3. 10x CleanMobName Stripping Tests
-    local mobNameTests = {
-        {Raw = "Bandit [Lv. 5]", Exp = "Bandit"},
-        {Raw = "Desert Bandit [Lv. 60]", Exp = "Desert Bandit"},
-        {Raw = "Desert Officer [Lv. 70]", Exp = "Desert Officer"},
-        {Raw = "The Gorilla King [Lv. 20] [Boss]", Exp = "The Gorilla King"},
-        {Raw = "Posessed Mummy [Lv. 2050]", Exp = "Posessed Mummy"},
-        {Raw = "Cookie Crafter [Lv. 2200]", Exp = "Cookie Crafter"},
-        {Raw = "Skull Slayer [Lv. 2575]", Exp = "Skull Slayer"},
-        {Raw = "Cake Prince [Lv. 2300] [Boss]", Exp = "Cake Prince"},
-        {Raw = "Diablo [Lv. 1750] [Boss]", Exp = "Diablo"},
-        {Raw = " Swan Pirate [Lv. 775] ", Exp = "Swan Pirate"},
-    }
-    for i, m in ipairs(mobNameTests) do
-        Check("CleanMobName", i, CleanMobName(m.Raw) == m.Exp)
-    end
-
-    -- 4. 10x Multi-Language Weapon Matcher Tests
-    local weaponTests = {
-        {Name = "Combat", Tip = "Melee", Cat = "Melee", Exp = true},
-        {Name = "Black Leg", Tip = "Cận chiến", Cat = "Melee", Exp = true},
-        {Name = "Godhuman", Tip = "Cận chiến", Cat = "Melee", Exp = true},
-        {Name = "Saber", Tip = "Kiếm", Cat = "Sword", Exp = true},
-        {Name = "Cursed Dual Katana", Tip = "Sword", Cat = "Sword", Exp = true},
-        {Name = "Light-Light", Tip = "Trái Ác Quỷ", Cat = "Blox Fruit", Exp = true},
-        {Name = "Buddha", Tip = "Blox Fruit", Cat = "Blox Fruit", Exp = true},
-        {Name = "Soul Guitar", Tip = "Súng", Cat = "Gun", Exp = true},
-        {Name = "Kabucha", Tip = "Gun", Cat = "Gun", Exp = true},
-        {Name = "Saber", Tip = "Kiếm", Cat = "Melee", Exp = false},
-    }
-    for i, w in ipairs(weaponTests) do
-        local tool = Instance.new("Tool")
-        tool.Name = w.Name
-        tool.ToolTip = w.Tip
-        Check("WeaponMatcher", i, DoesToolMatchCategory(tool, w.Cat) == w.Exp)
-        tool:Destroy()
-    end
-
-    -- 5. 10x Quest Database Level Bracket Lookup Tests
-    local levelTests = {1, 15, 65, 125, 350, 675, 750, 1200, 1850, 2600}
-    for i, lv in ipairs(levelTests) do
-        local q = GetQuestForLevel(lv)
-        Check("QuestBracket", i, type(q) == "table" and q.QuestPos ~= nil and q.MobPos ~= nil and #q.QuestName > 0)
-    end
-
-    -- 6. 10x StoreFruit Code Lookup Tests
-    local storeTests = {
-        {Name = "Sand Fruit", Exp = "Sand-Sand"},
-        {Name = "Control Fruit", Exp = "Control-Control"},
-        {Name = "Kitsune Fruit", Exp = "Kitsune-Kitsune"},
-        {Name = "Dough Fruit", Exp = "Dough-Dough"},
-        {Name = "Dragon Fruit", Exp = "Dragon-Dragon"},
-        {Name = "Leopard Fruit", Exp = "Leopard-Leopard"},
-        {Name = "Buddha Fruit", Exp = "Buddha-Buddha"},
-        {Name = "Light Fruit", Exp = "Light-Light"},
-        {Name = "Magma Fruit", Exp = "Magma-Magma"},
-        {Name = "Portal Fruit", Exp = "Portal-Portal"},
-    }
-    for i, st in ipairs(storeTests) do
-        local t = Instance.new("Tool")
-        t.Name = st.Name
-        Check("StoreCode", i, GetStoreCodeForTool(t) == st.Exp)
-        t:Destroy()
-    end
-
-    -- 7. 10x Internal Script Exclusion Tests
-    local ignoreList = {"Controller", "ControlScript", "EatController", "RigController", "Handle", "Fruit", "Fruit ", "CONTROLLER", "controlscript", "handle"}
-    for i, name in ipairs(ignoreList) do
-        Check("IgnoreInternal", i, MatchExactFruitString(name) == nil)
-    end
-
-    -- 8. 10x Hitbox Range Assertions
-    for i = 1, 10 do
-        local mobPos = Vector3.new(100 * i, 10, 50 * i)
-        local hoverPos = mobPos + Vector3.new(0, Config.FarmDistanceY, 0)
-        local distToMob = (hoverPos - mobPos).Magnitude
-        Check("HitboxRange", i, distToMob <= 15 and distToMob >= 10)
-    end
-
-    if #failedDetails == 0 then
-        Runtime.TestReportText = string.format("KIỂM THỬ 10x8: %d/%d PASSED (100%%)", totalPassed, totalTests)
-    else
-        Runtime.TestReportText = string.format("KIỂM THỬ: %d/%d | Lỗi: %s", totalPassed, totalTests, table.concat(failedDetails, ","))
-    end
-    if TestBannerLabel then
-        TestBannerLabel.Text = Runtime.TestReportText
-    end
-end
-
--- // 14. ESP System & Live Fruit Radar //
-local ESPFolder = Instance.new("Folder")
-ESPFolder.Name = SuiteName .. "_ESP"
-ESPFolder.Parent = GuiParent
-local ESPPool = {}
-local FruitRadarBanner = nil
-
-local function UpsertESP(key, part, text, col, seen)
-    if not part or not part.Parent then return end
-    seen[key] = true
-    local entry = ESPPool[key]
-    if not entry or not entry.Gui.Parent then
-        local bb = Instance.new("BillboardGui")
-        bb.Size = UDim2.new(0, 240, 0, 38)
-        bb.AlwaysOnTop = true
-        bb.Adornee = part
-        bb.Parent = ESPFolder
-
-        local lbl = Instance.new("TextLabel", bb)
-        lbl.Size = UDim2.new(1, 0, 1, 0)
-        lbl.BackgroundTransparency = 1
-        lbl.Font = Enum.Font.GothamBold
-        lbl.TextSize = 12
-        lbl.TextStrokeTransparency = 0.15
-
-        entry = {Gui = bb, Label = lbl}
-        ESPPool[key] = entry
-    end
-    entry.Gui.Adornee = part
-    entry.Label.Text = text
-    entry.Label.TextColor3 = col
-end
-
-local function RefreshESPAndRadar()
-    local root = GetRoot()
-    if not root then return end
-    local seen = {}
-
-    local realFruits = ScanAllRealFruitsOnMap(root.Position)
-    if #realFruits > 0 then
-        local names = {}
-        for i = 1, math.min(3, #realFruits) do
-            local f = realFruits[i]
-            table.insert(names, string.format("%s (%dm)", f.Name, f.Distance))
-        end
-        Runtime.FruitRadarText = "Fruit Radar [" .. tostring(#realFruits) .. "]: " .. table.concat(names, " | ")
-    else
-        Runtime.FruitRadarText = "Fruit Radar: Không có trái nào đang rơi trên Map"
-    end
-    if FruitRadarBanner then
-        FruitRadarBanner.Text = Runtime.FruitRadarText
-        FruitRadarBanner.TextColor3 = (#realFruits > 0) and Color3.fromRGB(115, 255, 130) or Color3.fromRGB(190, 185, 195)
-    end
-
-    if Config.ESPFruits then
-        for _, f in ipairs(realFruits) do
-            UpsertESP(f.Instance, f.Handle, string.format("[TRÁI] %s (%dm)", f.Name, f.Distance), Color3.fromRGB(110, 255, 120), seen)
-        end
-    end
-
-    if Config.ESPPlayers then
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                local pr = plr.Character.HumanoidRootPart
-                local ph = plr.Character:FindFirstChildOfClass("Humanoid")
-                local d = math.floor((pr.Position - root.Position).Magnitude)
-                UpsertESP(plr, pr, string.format("[%s] %d HP (%dm)", plr.Name, ph and math.floor(ph.Health) or 0, d), Color3.fromRGB(255, 75, 75), seen)
-            end
-        end
-    end
-
-    if Config.ESPBosses then
-        local enemies = Workspace:FindFirstChild("Enemies")
-        if enemies then
-            for _, mob in ipairs(enemies:GetChildren()) do
-                local mr = mob:FindFirstChild("HumanoidRootPart")
-                local mh = mob:FindFirstChildOfClass("Humanoid")
-                if mr and mh and mh.Health > 0 and (mob:FindFirstChild("Boss") or mh.MaxHealth >= 100000 or string.find(mob.Name, "Boss")) then
-                    local d = math.floor((mr.Position - root.Position).Magnitude)
-                    UpsertESP(mob, mr, string.format("[BOSS] %s (%dm)", CleanMobName(mob.Name), d), Color3.fromRGB(255, 165, 40), seen)
+        -- Interact with any nearby quest NPCs
+        for _, npc in ipairs(Workspace:GetDescendants()) do
+            if npc:IsA("Model") then
+                local nHRP = npc:FindFirstChild("HumanoidRootPart")
+                if nHRP and (nHRP.Position - hrp2.Position).Magnitude < 25 then
+                    if npc.Name:lower():find("quest") or npc.Name:lower():find("detective")
+                       or npc.Name:lower():find("military") or npc.Name:lower():find("lord") then
+                        FireRemote("GetQuest", npc)
+                        FireRemote("TakeQuest", npc)
+                        task.wait(0.3)
+                    end
                 end
             end
         end
-    end
-
-    if Config.ESPFlowers then
-        for _, fn in ipairs({"Flower1", "Flower2", "Flower3"}) do
-            local fl = Workspace:FindFirstChild(fn)
-            if fl and fl:IsA("BasePart") and fl.Transparency < 1 then
-                local d = math.floor((fl.Position - root.Position).Magnitude)
-                UpsertESP(fl, fl, string.format("[FLOWER] %s (%dm)", fn, d), Color3.fromRGB(90, 200, 255), seen)
-            end
-        end
-    end
-
-    local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-    if locs and (Config.ESPMirage or Config.ESPIslands) then
-        for _, loc in ipairs(locs:GetChildren()) do
-            local p = loc:IsA("BasePart") and loc or loc:FindFirstChildWhichIsA("BasePart")
-            if p then
-                local isSpec = (loc.Name == "Mirage Island" or loc.Name == "Kitsune Island" or loc.Name == "Prehistoric Island")
-                if (Config.ESPMirage and isSpec) or (Config.ESPIslands and not isSpec) then
-                    local d = math.floor((p.Position - root.Position).Magnitude)
-                    UpsertESP(loc, p, string.format("[%s] (%dm)", loc.Name, d), isSpec and Color3.fromRGB(255, 110, 255) or Color3.fromRGB(200, 220, 255), seen)
-                end
-            end
-        end
-    end
-
-    for k, entry in pairs(ESPPool) do
-        if not seen[k] then
-            pcall(function() entry.Gui:Destroy() end)
-            ESPPool[k] = nil
-        end
-    end
-end
-
--- // 15. Redz V16 Pure Text/Vector UI (Zero Image Assets) //
-local function MakeDraggable(handle, frame)
-    local dragging, activeInput, dragStart, startPos = false, nil, nil, nil
-    TrackConn(handle.InputBegan, function(input)
-        if not dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-            dragging = true
-            activeInput = input
-            dragStart = input.Position
-            startPos = frame.Position
-        end
-    end)
-    TrackConn(UserInputService.InputEnded, function(input)
-        if input == activeInput then
-            dragging = false
-            activeInput = nil
-        end
-    end)
-    TrackConn(UserInputService.InputChanged, function(input)
-        if dragging and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement) then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
     end)
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = SuiteName
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = GuiParent
-
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 700, 0, 465)
-MainFrame.Position = UDim2.new(0.5, -350, 0.5, -232)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 16)
-MainFrame.BorderSizePixel = 0
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(235, 45, 60)
-MainStroke.Thickness = 1.8
-
-local Header = Instance.new("Frame", MainFrame)
-Header.Size = UDim2.new(1, 0, 0, 36)
-Header.BackgroundColor3 = Color3.fromRGB(24, 16, 20)
-Header.BorderSizePixel = 0
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
-MakeDraggable(Header, MainFrame)
-
-local HeaderTitle = Instance.new("TextLabel", Header)
-HeaderTitle.Size = UDim2.new(0.45, 0, 1, 0)
-HeaderTitle.Position = UDim2.new(0, 14, 0, 0)
-HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Font = Enum.Font.GothamBold
-HeaderTitle.TextSize = 13
-HeaderTitle.TextColor3 = Color3.fromRGB(255, 65, 80)
-HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-HeaderTitle.Text = string.format("REDZ HUB V16 (CLEAN SOURCE) // [SEA %d]", Runtime.CurrentSea)
-
-local StatusLabel = Instance.new("TextLabel", Header)
-StatusLabel.Size = UDim2.new(0.45, -75, 1, 0)
-StatusLabel.Position = UDim2.new(0.45, 0, 0, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Font = Enum.Font.Code
-StatusLabel.TextSize = 12
-StatusLabel.TextColor3 = Color3.fromRGB(110, 245, 150)
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
-StatusLabel.Text = "Task: Idle"
-
-local HideBtn = Instance.new("TextButton", Header)
-HideBtn.Size = UDim2.new(0, 60, 0, 24)
-HideBtn.Position = UDim2.new(1, -68, 0, 6)
-HideBtn.BackgroundColor3 = Color3.fromRGB(195, 35, 50)
-HideBtn.Font = Enum.Font.GothamBold
-HideBtn.TextSize = 11
-HideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HideBtn.Text = "HIDE"
-Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
-
-local RadarBar = Instance.new("Frame", MainFrame)
-RadarBar.Size = UDim2.new(1, -16, 0, 24)
-RadarBar.Position = UDim2.new(0, 8, 0, 40)
-RadarBar.BackgroundColor3 = Color3.fromRGB(22, 18, 25)
-RadarBar.BorderSizePixel = 0
-Instance.new("UICorner", RadarBar).CornerRadius = UDim.new(0, 5)
-
-FruitRadarBanner = Instance.new("TextLabel", RadarBar)
-FruitRadarBanner.Size = UDim2.new(0.58, -8, 1, 0)
-FruitRadarBanner.Position = UDim2.new(0, 8, 0, 0)
-FruitRadarBanner.BackgroundTransparency = 1
-FruitRadarBanner.Font = Enum.Font.Code
-FruitRadarBanner.TextSize = 11
-FruitRadarBanner.TextColor3 = Color3.fromRGB(190, 185, 195)
-FruitRadarBanner.TextXAlignment = Enum.TextXAlignment.Left
-FruitRadarBanner.Text = Runtime.FruitRadarText
-
-TestBannerLabel = Instance.new("TextLabel", RadarBar)
-TestBannerLabel.Size = UDim2.new(0.42, -8, 1, 0)
-TestBannerLabel.Position = UDim2.new(0.58, 0, 0, 0)
-TestBannerLabel.BackgroundTransparency = 1
-TestBannerLabel.Font = Enum.Font.Code
-TestBannerLabel.TextSize = 11
-TestBannerLabel.TextColor3 = Color3.fromRGB(120, 255, 160)
-TestBannerLabel.TextXAlignment = Enum.TextXAlignment.Right
-TestBannerLabel.Text = Runtime.TestReportText
-
-local FloatBtn = Instance.new("TextButton", ScreenGui)
-FloatBtn.Size = UDim2.new(0, 52, 0, 52)
-FloatBtn.Position = UDim2.new(0, 18, 0.45, 0)
-FloatBtn.BackgroundColor3 = Color3.fromRGB(22, 14, 18)
-FloatBtn.Font = Enum.Font.GothamBold
-FloatBtn.TextSize = 12
-FloatBtn.TextColor3 = Color3.fromRGB(235, 50, 65)
-FloatBtn.Text = "REDZ"
-Instance.new("UICorner", FloatBtn).CornerRadius = UDim.new(1, 0)
-local FloatStroke = Instance.new("UIStroke", FloatBtn)
-FloatStroke.Color = Color3.fromRGB(235, 45, 60)
-FloatStroke.Thickness = 2
-MakeDraggable(FloatBtn, FloatBtn)
-
-local function ToggleUI() MainFrame.Visible = not MainFrame.Visible end
-TrackConn(HideBtn.MouseButton1Click, ToggleUI)
-TrackConn(FloatBtn.MouseButton1Click, ToggleUI)
-
-local Sidebar = Instance.new("ScrollingFrame", MainFrame)
-Sidebar.Size = UDim2.new(0, 155, 1, -76)
-Sidebar.Position = UDim2.new(0, 8, 0, 68)
-Sidebar.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
-Sidebar.BorderSizePixel = 0
-Sidebar.ScrollBarThickness = 2
-Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Sidebar.CanvasSize = UDim2.new(0, 0, 0, 0)
-Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
-
-local SidebarList = Instance.new("UIListLayout", Sidebar)
-SidebarList.Padding = UDim.new(0, 5)
-SidebarList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-local SidebarPad = Instance.new("UIPadding", Sidebar)
-SidebarPad.PaddingTop = UDim.new(0, 8)
-SidebarPad.PaddingBottom = UDim.new(0, 8)
-
-local PagesHolder = Instance.new("Folder", MainFrame)
-local TabButtons = {}
-
-local function CreateTab(name)
-    local Btn = Instance.new("TextButton", Sidebar)
-    Btn.Size = UDim2.new(1, -12, 0, 32)
-    Btn.BackgroundColor3 = Color3.fromRGB(30, 22, 28)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 12
-    Btn.TextColor3 = Color3.fromRGB(210, 195, 200)
-    Btn.Text = name
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
-    table.insert(TabButtons, Btn)
-
-    local Page = Instance.new("ScrollingFrame", PagesHolder)
-    Page.Size = UDim2.new(1, -176, 1, -76)
-    Page.Position = UDim2.new(0, 168, 0, 68)
-    Page.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
-    Page.BorderSizePixel = 0
-    Page.ScrollBarThickness = 4
-    Page.Visible = false
-    Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    Page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    Instance.new("UICorner", Page).CornerRadius = UDim.new(0, 6)
-
-    local Layout = Instance.new("UIListLayout", Page)
-    Layout.Padding = UDim.new(0, 6)
-    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    local Pad = Instance.new("UIPadding", Page)
-    Pad.PaddingTop = UDim.new(0, 8)
-    Pad.PaddingBottom = UDim.new(0, 8)
-
-    TrackConn(Btn.MouseButton1Click, function()
-        for _, p in ipairs(PagesHolder:GetChildren()) do p.Visible = false end
-        for _, b in ipairs(TabButtons) do
-            b.BackgroundColor3 = Color3.fromRGB(30, 22, 28)
-            b.TextColor3 = Color3.fromRGB(210, 195, 200)
+local function doAutoStats()
+    pcall(function()
+        local statRemote = Remotes and (Remotes:FindFirstChild("BuyStat") or Remotes:FindFirstChild("IncreaseStat"))
+        if statRemote then
+            pcall(function() statRemote:FireServer(S.StatsType) end)
         end
-        Page.Visible = true
-        Btn.BackgroundColor3 = Color3.fromRGB(195, 35, 50)
-        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end)
-    return Page, Btn
-end
-
-local function AddSection(page, text)
-    local Lbl = Instance.new("TextLabel", page)
-    Lbl.Size = UDim2.new(1, -16, 0, 22)
-    Lbl.BackgroundTransparency = 1
-    Lbl.Font = Enum.Font.GothamBold
-    Lbl.TextSize = 12
-    Lbl.TextColor3 = Color3.fromRGB(235, 65, 80)
-    Lbl.TextXAlignment = Enum.TextXAlignment.Left
-    Lbl.Text = ">> " .. string.upper(text)
-end
-
-local function AddToggle(page, text, key, stopsMove, callback)
-    local Row = Instance.new("Frame", page)
-    Row.Size = UDim2.new(1, -16, 0, 32)
-    Row.BackgroundColor3 = Color3.fromRGB(28, 20, 26)
-    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 5)
-
-    local Lbl = Instance.new("TextLabel", Row)
-    Lbl.Size = UDim2.new(1, -72, 1, 0)
-    Lbl.Position = UDim2.new(0, 10, 0, 0)
-    Lbl.BackgroundTransparency = 1
-    Lbl.Font = Enum.Font.GothamSemibold
-    Lbl.TextSize = 12
-    Lbl.TextColor3 = Color3.fromRGB(235, 225, 230)
-    Lbl.TextXAlignment = Enum.TextXAlignment.Left
-    Lbl.Text = text
-
-    local Btn = Instance.new("TextButton", Row)
-    Btn.Size = UDim2.new(0, 52, 0, 22)
-    Btn.Position = UDim2.new(1, -60, 0, 5)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 11
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
-
-    local function Sync()
-        local on = Config[key]
-        Btn.Text = on and "ON" or "OFF"
-        Btn.BackgroundColor3 = on and Color3.fromRGB(205, 40, 55) or Color3.fromRGB(55, 45, 52)
-        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end
-    Sync()
-
-    TrackConn(Btn.MouseButton1Click, function()
-        Config[key] = not Config[key]
-        Sync()
-        SaveConfig()
-        if not Config[key] and stopsMove then
-            StopMove()
-            Runtime.TargetMob = nil
-        end
-        if callback then pcall(callback, Config[key]) end
+        FireRemote("BuyStat", S.StatsType)
     end)
 end
 
-local function AddCycle(page, text, list, key)
-    local Row = Instance.new("Frame", page)
-    Row.Size = UDim2.new(1, -16, 0, 32)
-    Row.BackgroundColor3 = Color3.fromRGB(28, 20, 26)
-    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 5)
-
-    local Lbl = Instance.new("TextLabel", Row)
-    Lbl.Size = UDim2.new(0.55, 0, 1, 0)
-    Lbl.Position = UDim2.new(0, 10, 0, 0)
-    Lbl.BackgroundTransparency = 1
-    Lbl.Font = Enum.Font.GothamSemibold
-    Lbl.TextSize = 12
-    Lbl.TextColor3 = Color3.fromRGB(235, 225, 230)
-    Lbl.TextXAlignment = Enum.TextXAlignment.Left
-    Lbl.Text = text
-
-    local idx = 1
-    for i, v in ipairs(list) do
-        if v == Config[key] then idx = i break end
-    end
-
-    local Btn = Instance.new("TextButton", Row)
-    Btn.Size = UDim2.new(0.42, -10, 0, 22)
-    Btn.Position = UDim2.new(0.58, 0, 0, 5)
-    Btn.BackgroundColor3 = Color3.fromRGB(145, 35, 50)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 11
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.Text = tostring(Config[key])
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
-
-    TrackConn(Btn.MouseButton1Click, function()
-        idx = (idx % #list) + 1
-        Config[key] = list[idx]
-        Btn.Text = tostring(Config[key])
-        SaveConfig()
-    end)
-end
-
-local function AddButton(page, text, fn)
-    local Btn = Instance.new("TextButton", page)
-    Btn.Size = UDim2.new(1, -16, 0, 30)
-    Btn.BackgroundColor3 = Color3.fromRGB(165, 35, 50)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 12
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.Text = text
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
-    TrackConn(Btn.MouseButton1Click, function()
-        task.spawn(function() pcall(fn) end)
-    end)
-end
-
--- // 16. Build All 7 Tabs //
-local TabFarm, FirstBtn = CreateTab("Main Farm")
-local TabQuests = CreateTab("Quests & Items")
-local TabSea = CreateTab("Sea Event & V4")
-local TabFruitRaid = CreateTab("Fruit & Raid")
-local TabShop = CreateTab("Stats & Shop")
-local TabTeleport = CreateTab("Teleport")
-local TabMisc = CreateTab("ESP & Settings")
-
-FirstBtn.BackgroundColor3 = Color3.fromRGB(195, 35, 50)
-FirstBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TabFarm.Visible = true
-
--- Tab 1: Main Farm
-AddSection(TabFarm, "Weapon & Hitbox Distance (12.5 Studs = Sweet Spot)")
-AddCycle(TabFarm, "Select Weapon", {"Melee", "Sword", "Blox Fruit", "Gun"}, "SelectedWeapon")
-AddCycle(TabFarm, "Hover Distance Y", {10, 12.5, 15, 18, 22}, "FarmDistanceY")
-AddCycle(TabFarm, "Glide Speed", {240, 270, 295, 315, 330}, "TweenSpeed")
-AddSection(TabFarm, "Auto Farm Level & Bosses")
-AddToggle(TabFarm, "Auto Farm Level (Sync Quest Handshake!)", "AutoFarmLevel", true)
-AddToggle(TabFarm, "Auto Farm Nearest Mob", "AutoFarmNearest", true)
-AddToggle(TabFarm, "Auto Farm All Bosses (Streams From Server)", "AutoFarmBosses", true)
-
-local seaBossNames = {"All Bosses"}
-for _, b in ipairs(BossDatabase[Runtime.CurrentSea] or {}) do
-    table.insert(seaBossNames, b.Name)
-end
-AddCycle(TabFarm, "Target Boss Filter", seaBossNames, "SelectedSpecificBoss")
-AddToggle(TabFarm, "Auto Farm Chests", "AutoFarmChest", true)
-
-AddSection(TabFarm, "4-Layer Combat Helpers")
-AddToggle(TabFarm, "Fast Attack (Click+Release + GC + Net)", "FastAttack", false)
-AddToggle(TabFarm, "Super Fast Attack (Double Net-Burst)", "SuperFastAttack", false)
-AddToggle(TabFarm, "Bring Mobs (Live Target Lock)", "BringMobs", false)
-AddToggle(TabFarm, "Auto Buso Haki", "AutoBuso", false)
-AddToggle(TabFarm, "Auto Observation Haki", "AutoKen", false)
-
--- Tab 2: Quests & Items
-AddSection(TabQuests, "Sea Progression & Endgame Grinds")
-AddToggle(TabQuests, "Auto Dressrosa / Second Sea Quest (Lv >= 700)", "AutoSecondSea", true)
-AddToggle(TabQuests, "Auto Zou / Third Sea Quest (Lv >= 1500)", "AutoThirdSea", true)
-AddToggle(TabQuests, "Auto Farm Bones (Haunted Castle)", "AutoFarmBone", true)
-AddToggle(TabQuests, "Auto Random Surprise (50 Bones)", "AutoTradeBones", false)
-AddToggle(TabQuests, "Auto Cake Prince / Dough King", "AutoFarmKatakuri", true)
-AddToggle(TabQuests, "Auto Spawn Cake Prince", "AutoSpawnCakePrince", false)
-AddToggle(TabQuests, "Auto Elite Hunter (Diablo/Deandre/Urban)", "AutoEliteHunter", true)
-AddToggle(TabQuests, "Auto Pirate Raid (Castle on the Sea)", "AutoPirateRaid", true)
-AddToggle(TabQuests, "Auto Factory Core (Sea 2)", "AutoFactory", true)
-AddSection(TabQuests, "Auto Swords & Guns")
-AddToggle(TabQuests, "Auto Saber Unlock (Sea 1)", "AutoSaber", true)
-AddToggle(TabQuests, "Auto Bartilo Quest (Sea 2)", "AutoBartilo", true)
-AddToggle(TabQuests, "Auto Rengoku Sword (Sea 2)", "AutoRengoku", true)
-AddToggle(TabQuests, "Auto Pull Yama (Sea 3)", "AutoYama", true)
-AddToggle(TabQuests, "Auto Tushita Torches (Sea 3)", "AutoTushita", true)
-AddToggle(TabQuests, "Auto Cursed Dual Katana (CDK)", "AutoCDK", true)
-AddToggle(TabQuests, "Auto Soul Guitar Puzzle (Sea 3)", "AutoSoulGuitar", true)
-AddSection(TabQuests, "Fruit & Gun Mastery")
-AddToggle(TabQuests, "Auto Farm Mastery", "AutoFarmMastery", true)
-AddCycle(TabQuests, "Mastery Target", {"Blox Fruit", "Gun", "Sword"}, "MasteryWeapon")
-AddCycle(TabQuests, "Kill At HP %", {20, 30, 35, 50}, "MasteryHealthPct")
-AddToggle(TabQuests, "Use Skill Z", "SkillZ", false)
-AddToggle(TabQuests, "Use Skill X", "SkillX", false)
-AddToggle(TabQuests, "Use Skill C", "SkillC", false)
-AddToggle(TabQuests, "Use Skill V", "SkillV", false)
-AddToggle(TabQuests, "Use Skill F", "SkillF", false)
-
--- Tab 3: Sea Event & Race V4
-AddSection(TabSea, "Sea Events & Kitsune / Mirage")
-AddToggle(TabSea, "Auto Kill Sea Beast", "AutoSeaBeast", true)
-AddToggle(TabSea, "Auto Kill Terrorshark / Sharks / Piranhas", "AutoTerrorshark", true)
-AddToggle(TabSea, "Auto Kill Ghost Ship / Crew", "AutoGhostShip", true)
-AddToggle(TabSea, "Auto Kitsune Island / Azure Ember", "AutoKitsuneIsland", true)
-AddToggle(TabSea, "Auto Find Mirage Island", "AutoFindMirage", true)
-AddToggle(TabSea, "Auto Grab Blue Gear (Mirage)", "AutoTeleportGear", true)
-AddSection(TabSea, "Race V4 & Temple of Time")
-AddToggle(TabSea, "Auto Pull Race V4 Lever", "AutoPullLever", true)
-AddToggle(TabSea, "Auto Trial Race V4", "AutoTrialV4", true)
-AddToggle(TabSea, "Auto Activate Race V4 (Y Key)", "AutoActivateV4", false)
-AddButton(TabSea, "Glide -> Temple of Time", function()
-    MoveToCFrame(CFrame.new(28286.35, 14895.30, 102.62), true)
-end)
-
--- Tab 4: Fruit & Raid Dungeon
-AddSection(TabFruitRaid, "Devil Fruits (Exact Name Resolver)")
-AddToggle(TabFruitRaid, "ESP Devil Fruits (Shows True VN/EN Name)", "ESPFruits", false, RefreshESPAndRadar)
-AddToggle(TabFruitRaid, "Auto Random Fruit (Gacha)", "AutoRandomFruit", false)
-AddToggle(TabFruitRaid, "Auto Store Fruits in Inventory", "AutoStoreFruit", false)
-AddToggle(TabFruitRaid, "Auto Grab & Store Real Fruits on Map", "GrabDroppedFruits", true)
-AddCycle(TabFruitRaid, "Sniper Fruit", {
-    "Kitsune-Kitsune", "Dragon-Dragon", "Leopard-Leopard", "Dough-Dough",
-    "T-Rex-T-Rex", "Mammoth-Mammoth", "Portal-Portal", "Buddha-Buddha", "Magma-Magma", "Light-Light"
-}, "SniperFruitTarget")
-AddToggle(TabFruitRaid, "Auto Buy Sniper Fruit", "AutoSnipeFruit", false)
-AddSection(TabFruitRaid, "Auto Raid Dungeon")
-AddCycle(TabFruitRaid, "Raid Chip", {
-    "Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Sand", "Phoenix", "Dough"
-}, "SelectedRaid")
-AddToggle(TabFruitRaid, "Auto Buy Raid Chip", "AutoBuyChip", false)
-AddToggle(TabFruitRaid, "Auto Start Raid Console", "AutoStartRaid", true)
-AddToggle(TabFruitRaid, "Auto Complete Raid (Next Island + KillAura)", "AutoRaidDungeon", true)
-AddToggle(TabFruitRaid, "Auto Awaken Fruit After Raid", "AutoAwaken", false)
-
--- Tab 5: Stats & Shop
-AddSection(TabShop, "Auto Stats")
-AddToggle(TabShop, "Auto Allocate Stats", "AutoStats", false)
-AddCycle(TabShop, "Stat Priority", {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, "StatTarget")
-AddSection(TabShop, "Buy Fighting Styles")
-AddButton(TabShop, "Buy Black Leg", function() InvokeCommF("BuyBlackLeg") end)
-AddButton(TabShop, "Buy Electro", function() InvokeCommF("BuyElectro") end)
-AddButton(TabShop, "Buy Fishman Karate", function() InvokeCommF("BuyFishmanKarate") end)
-AddButton(TabShop, "Buy Dragon Claw", function()
-    InvokeCommF("BlackbeardReward", "DragonClaw", "1")
-    InvokeCommF("BlackbeardReward", "DragonClaw", "2")
-end)
-AddButton(TabShop, "Buy Superhuman", function() InvokeCommF("BuySuperhuman") end)
-AddButton(TabShop, "Buy Death Step", function() InvokeCommF("BuyDeathStep") end)
-AddButton(TabShop, "Buy Sharkman Karate", function() InvokeCommF("BuySharkmanKarate") end)
-AddButton(TabShop, "Buy Electric Claw", function() InvokeCommF("BuyElectricClaw") end)
-AddButton(TabShop, "Buy Dragon Talon", function() InvokeCommF("BuyDragonTalon") end)
-AddButton(TabShop, "Buy Godhuman", function() InvokeCommF("BuyGodhuman") end)
-AddButton(TabShop, "Buy Sanguine Art", function() InvokeCommF("BuySanguineArt") end)
-AddSection(TabShop, "Abilities & Misc Shop")
-AddButton(TabShop, "Buy Geppo (Skyjump)", function() InvokeCommF("BuyHaki", "Geppo") end)
-AddButton(TabShop, "Buy Buso Haki", function() InvokeCommF("BuyHaki", "Buso") end)
-AddButton(TabShop, "Buy Soru (Flash Step)", function() InvokeCommF("BuyHaki", "Soru") end)
-AddButton(TabShop, "Buy Observation Haki (Ken)", function() InvokeCommF("KenTalk", "Buy") end)
-AddButton(TabShop, "Refund Stats (2,500 Fragments)", function() InvokeCommF("BlackbeardReward", "Refund", "2") end)
-AddButton(TabShop, "Reroll Race (3,000 Fragments)", function() InvokeCommF("BlackbeardReward", "Reroll", "2") end)
-
--- Tab 6: Teleport
-AddSection(TabTeleport, "Cross-Sea Travel")
-AddButton(TabTeleport, "Travel -> First Sea", function() InvokeCommF("TravelMain") end)
-AddButton(TabTeleport, "Travel -> Second Sea", function() InvokeCommF("TravelDressrosa") end)
-AddButton(TabTeleport, "Travel -> Third Sea", function() InvokeCommF("TravelZou") end)
-AddSection(TabTeleport, "Islands (Smooth Glide)")
-for name, cf in pairs(IslandLocations[Runtime.CurrentSea] or {}) do
-    AddButton(TabTeleport, "Glide -> " .. name, function()
-        Runtime.TaskName = "Teleport: " .. name
-        MoveToCFrame(cf, true)
-    end)
-end
-AddButton(TabTeleport, "Stop Active Movement", StopMove)
-
--- Tab 7: ESP & Settings
-AddSection(TabMisc, "10x8 Automated Verification Suite (80 Cases)")
-AddButton(TabMisc, "Chạy Lại 80 Phép Kiểm Thử", Run80xVerificationSuite)
-AddSection(TabMisc, "ESP")
-AddToggle(TabMisc, "ESP Players", "ESPPlayers", false, RefreshESPAndRadar)
-AddToggle(TabMisc, "ESP Bosses", "ESPBosses", false, RefreshESPAndRadar)
-AddToggle(TabMisc, "ESP Devil Fruits (Exact VN/EN Name)", "ESPFruits", false, RefreshESPAndRadar)
-AddToggle(TabMisc, "ESP Flowers", "ESPFlowers", false, RefreshESPAndRadar)
-AddToggle(TabMisc, "ESP Mirage / Kitsune / Prehistoric", "ESPMirage", false, RefreshESPAndRadar)
-AddToggle(TabMisc, "ESP All Islands", "ESPIslands", false, RefreshESPAndRadar)
-AddSection(TabMisc, "Character & Visuals")
-AddToggle(TabMisc, "Silent Aimbot Skills", "SilentAim", false)
-AddToggle(TabMisc, "Walk On Water", "WalkOnWater", false)
-AddToggle(TabMisc, "NoClip", "NoClip", false)
-AddToggle(TabMisc, "Infinite Energy", "InfiniteEnergy", false)
-AddToggle(TabMisc, "FullBright", "FullBright", false)
-AddButton(TabMisc, "Force Abandon Current Quest", function()
-    InvokeCommF("AbandonQuest")
-    Runtime.ConfirmedQuestName = nil
-end)
-AddButton(TabMisc, "FPS Boost (SmoothPlastic)", function()
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 9e9
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic
-        elseif v:IsA("Decal") or v:IsA("Texture") then v.Transparency = 1
-        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end
-    end
-end)
-
-Run80xVerificationSuite()
-
--- // 17. Primary Redz V16 Automation Loop //
-local LastCakeSpawn = 0
-local LastEliteCheck = 0
-
+-- Main farm loop
 task.spawn(function()
-    while SessionActive and ScreenGui.Parent do
-        task.wait(0.1)
+    while task.wait(0.12) do
+        if not S.AutoFarm then continue end
         pcall(function()
-            DetectSea()
-            StatusLabel.Text = string.format("Task: %s [Swings: %d]", tostring(Runtime.TaskName), Runtime.SwingCount)
-            Runtime.TargetMob = nil
+            local hum2 = getHum()
+            if not hum2 or hum2.Health <= 0 then return end
 
-            local root = GetRoot()
-            local hum = GetHum()
-            if not root or not hum or hum.Health <= 0 then
-                Runtime.TaskName = "Waiting Respawn"
-                StopMove()
-                return
-            end
-
-            -- Auto Race V4 Awakening Key
-            if Config.AutoActivateV4 and VirtualInputManager then
-                local ch = GetChar()
-                local re = ch and ch:FindFirstChild("RaceEnergy")
-                local rt = ch and ch:FindFirstChild("RaceTransformed")
-                if re and re.Value >= 1 and (not rt or not rt.Value) then
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
-                    task.wait(0.04)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+            -- Auto quest check
+            if S.AutoQuest then
+                local stats = LP.Character and LP.Character:FindFirstChild("Stats")
+                local qc = stats and stats:FindFirstChild("QuestCount")
+                if qc and qc.Value == 0 then
+                    takeQuest()
+                    task.wait(1.2)
                 end
             end
 
-            -- 1. Direct Fruit Pickup + Instant Store
-            if Config.GrabDroppedFruits then
-                local realFruits = ScanAllRealFruitsOnMap(root.Position)
-                if #realFruits > 0 then
-                    local f = realFruits[1]
-                    Runtime.TaskName = "Nhặt Trái: " .. tostring(f.Name)
-                    Runtime.BringPosCF = nil
-                    MoveToCFrame(f.Handle.CFrame, false)
-                    if (root.Position - f.Handle.Position).Magnitude <= 15 then
-                        root.CFrame = f.Handle.CFrame
-                        if f.Instance:IsA("Tool") then
-                            pcall(function() hum:EquipTool(f.Instance) end)
-                        end
-                        FireAllInteractables(f.Instance)
-                        StoreAllFruitsInBags()
-                    end
-                    return
-                end
+            -- Auto stats
+            if S.AutoStats then doAutoStats() end
+
+            -- Find and attack mob
+            local target = findNearestMob()
+            if not target then return end
+
+            local tHRP = target:FindFirstChild("HumanoidRootPart")
+            local tHum = target:FindFirstChildWhichIsA("Humanoid")
+            if not tHRP or not tHum or tHum.Health <= 0 then return end
+
+            local hrp2 = getHRP()
+            if not hrp2 then return end
+
+            local dist = (hrp2.Position - tHRP.Position).Magnitude
+
+            -- Magnet (pull mob to player)
+            if S.Magnet then
+                pcall(function() tHRP.CFrame = CFrame.new(hrp2.Position + hrp2.CFrame.LookVector * 4) end)
             end
 
-            -- 2. Auto Second Sea Quest (Sea 1, Level >= 700)
-            if Config.AutoSecondSea and Runtime.CurrentSea == 1 and GetLevel() >= 700 then
-                local prog = InvokeCommF("DressrosaQuestProgress", "Dressrosa")
-                if prog == 0 then
-                    Runtime.TaskName = "2nd Sea: Getting Key"
-                    InvokeCommF("DressrosaQuestProgress", "Detective")
-                    if HasItem("Key") then
-                        EquipSelectedWeapon(nil, "Key")
-                        MoveToCFrame(CFrame.new(1347.71, 37.35, -1325.64), false)
-                        InvokeCommF("DressrosaQuestProgress", "UseKey")
-                    end
-                    return
-                else
-                    local iceAdmiral = FindLiveEnemy("Ice Admiral", false)
-                    if iceAdmiral then
-                        Runtime.TaskName = "2nd Sea: Killing Ice Admiral"
-                        AttackAndHoverMob(iceAdmiral, nil)
-                    else
-                        Runtime.TaskName = "2nd Sea: Moving to Ice Cave"
-                        MoveToCFrame(CFrame.new(1347.71, 37.35, -1325.64), false)
-                        InvokeCommF("TravelDressrosa")
-                    end
-                    return
-                end
+            -- Tween to mob if far
+            if dist > 7 then
+                local tw = TweenService:Create(hrp2, TweenInfo.new(S.TweenSpeed, Enum.EasingStyle.Linear),
+                    {CFrame = CFrame.new(tHRP.Position + Vector3.new(0, 2, 0))})
+                tw:Play()
+                if S.TweenSpeed > 0.15 then tw.Completed:Wait() end
             end
 
-            -- 3. Auto Third Sea Quest (Sea 2, Level >= 1500)
-            if Config.AutoThirdSea and Runtime.CurrentSea == 2 and GetLevel() >= 1500 then
-                local zProg = InvokeCommF("ZQuestProgress", "Check")
-                if zProg == 0 then
-                    local ripIndra = FindLiveEnemy("rip_indra", false)
-                    if ripIndra then
-                        Runtime.TaskName = "3rd Sea: Fighting rip_indra"
-                        AttackAndHoverMob(ripIndra, nil)
-                    else
-                        InvokeCommF("ZQuestProgress", "Begin")
-                        MoveToCFrame(CFrame.new(-1926.32, 12.15, 1738.30), false)
-                    end
-                    return
-                elseif zProg == 1 then
-                    InvokeCommF("TravelZou")
-                    return
-                end
-            end
+            attackTarget(target)
 
-            -- 4. Auto Raid Dungeon
-            if Config.AutoRaidDungeon then
-                local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-                if locs then
-                    for i = 5, 1, -1 do
-                        local isl = locs:FindFirstChild("Island " .. tostring(i))
-                        local p = isl and (isl:IsA("BasePart") and isl or isl:FindFirstChildWhichIsA("BasePart"))
-                        if p and (p.Position - root.Position).Magnitude < 3500 then
-                            Runtime.TaskName = "Raid Island " .. tostring(i)
-                            local raidMob = FindLiveEnemy(nil, false, p.Position, 950)
-                            if raidMob then
-                                AttackAndHoverMob(raidMob, nil)
-                                local enemies = Workspace:FindFirstChild("Enemies")
-                                if enemies then
-                                    for _, m in ipairs(enemies:GetChildren()) do
-                                        local mh = m:FindFirstChildOfClass("Humanoid")
-                                        local mr = m:FindFirstChild("HumanoidRootPart")
-                                        if mh and mr and mh.Health > 0 and (mr.Position - root.Position).Magnitude <= 280 then
-                                            pcall(function() mh.Health = 0 end)
-                                        end
-                                    end
-                                end
-                            else
-                                MoveToCFrame(p.CFrame * CFrame.new(0, 50, 0), false)
-                            end
-                            return
-                        end
-                    end
-                end
-            end
-
-            -- 5. Auto Start Raid Console
-            if Config.AutoStartRaid and (Runtime.CurrentSea == 2 or Runtime.CurrentSea == 3) and HasItem("Special Microchip") then
-                local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-                local timer = pgui and pgui:FindFirstChild("Main") and pgui.Main:FindFirstChild("Timer")
-                if not (timer and timer.Visible) then
-                    local map = Workspace:FindFirstChild("Map")
-                    local raidLab = (Runtime.CurrentSea == 2 and map and map:FindFirstChild("CircleIsland") and map.CircleIsland:FindFirstChild("RaidSummon2"))
-                        or (Runtime.CurrentSea == 3 and map and map:FindFirstChild("Boat Castle") and map["Boat Castle"]:FindFirstChild("RaidSummon2"))
-                    local btn = raidLab and raidLab:FindFirstChild("Button") and raidLab.Button:FindFirstChild("Main")
-                    if btn and btn:IsA("BasePart") then
-                        Runtime.TaskName = "Starting Raid Console"
-                        MoveToCFrame(btn.CFrame * CFrame.new(0, 4, 0), false)
-                        if (root.Position - btn.Position).Magnitude <= 20 then
-                            EquipSelectedWeapon(nil, "Special Microchip")
-                            FireAllInteractables(btn)
-                        end
-                        return
-                    end
-                end
-            end
-
-            -- 6. Kitsune Island & Mirage
-            if Config.AutoKitsuneIsland and Runtime.CurrentSea == 3 then
-                for _, obj in ipairs(Workspace:GetChildren()) do
-                    if obj.Name == "EmberTemplate" or string.find(obj.Name, "AzureEmber") then
-                        local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-                        if p then
-                            Runtime.TaskName = "Collecting Azure Ember"
-                            MoveToCFrame(p.CFrame, false)
-                            FireAllInteractables(obj)
-                            return
-                        end
-                    end
-                end
-            end
-
-            if Config.AutoTeleportGear and Runtime.CurrentSea == 3 then
-                local map = Workspace:FindFirstChild("Map")
-                local mystic = map and map:FindFirstChild("MysticIsland")
-                if mystic then
-                    for _, v in ipairs(mystic:GetDescendants()) do
-                        if v:IsA("MeshPart") and (v.MeshId == "rbxassetid://10153114969" or v.Name == "Gear") then
-                            Runtime.TaskName = "Grabbing Blue Gear"
-                            MoveToCFrame(v.CFrame, false)
-                            FireAllInteractables(v)
-                            return
-                        end
-                    end
-                end
-            end
-
-            if Config.AutoFindMirage and Runtime.CurrentSea == 3 then
-                local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-                local mirage = locs and locs:FindFirstChild("Mirage Island")
-                local p = mirage and (mirage:IsA("BasePart") and mirage or mirage:FindFirstChildWhichIsA("BasePart"))
-                if p then
-                    Runtime.TaskName = "Moving to Mirage"
-                    MoveToCFrame(p.CFrame * CFrame.new(0, 180, 0), false)
-                    return
-                end
-            end
-
-            -- 7. Sea Events
-            if Config.AutoSeaBeast then
-                local sbFolder = Workspace:FindFirstChild("SeaBeasts")
-                if sbFolder then
-                    for _, sb in ipairs(sbFolder:GetChildren()) do
-                        local sr = sb:FindFirstChild("HumanoidRootPart")
-                        local sh = sb:FindFirstChildOfClass("Humanoid")
-                        if sr and sh and sh.Health > 0 then
-                            Runtime.TaskName = "Killing Sea Beast"
-                            Runtime.TargetMob = sb
-                            Runtime.AimbotPart = sr
-                            MoveToCFrame(sr.CFrame * CFrame.new(0, 220, 0), false)
-                            EquipSelectedWeapon("Blox Fruit")
-                            FireSkillsNow()
-                            return
-                        end
-                    end
-                end
-            end
-
-            if Config.AutoTerrorshark then
-                local seaMob = FindLiveEnemy({"Terrorshark", "Shark", "Piranha", "Fish Crew Member"}, false)
-                if seaMob then
-                    Runtime.TaskName = "Sea Event: " .. CleanMobName(seaMob.Name)
-                    AttackAndHoverMob(seaMob, nil)
-                    return
-                end
-            end
-
-            if Config.AutoGhostShip then
-                local ghostMob = FindLiveEnemy({"Haunted Crew Member", "Ghost Ship", "Pirate Brigade"}, false)
-                if ghostMob then
-                    Runtime.TaskName = "Ghost Ship: " .. CleanMobName(ghostMob.Name)
-                    AttackAndHoverMob(ghostMob, nil)
-                    return
-                end
-            end
-
-            -- 8. Race V4 Lever & Trial
-            if Config.AutoPullLever and Runtime.CurrentSea == 3 then
-                local map = Workspace:FindFirstChild("Map")
-                local temple = map and map:FindFirstChild("Temple of Time")
-                local lever = temple and temple:FindFirstChild("Lever")
-                local p = lever and (lever:FindFirstChild("Part") or lever:FindFirstChildWhichIsA("BasePart"))
-                if p then
-                    Runtime.TaskName = "Pulling V4 Lever"
-                    MoveToCFrame(p.CFrame, false)
-                    if (root.Position - p.Position).Magnitude <= 16 then
-                        FireAllInteractables(lever)
-                    end
-                    return
-                end
-            end
-
-            if Config.AutoTrialV4 and Runtime.CurrentSea == 3 then
-                local templePos = Vector3.new(28286.35, 14895.30, 102.62)
-                local trialMob = FindLiveEnemy(nil, false, templePos, 2500)
-                if trialMob then
-                    Runtime.TaskName = "Trial V4 Combat"
-                    AttackAndHoverMob(trialMob, nil)
-                    return
-                end
-            end
-
-            -- 9. Sword & Gun Unlocks
-            if Config.AutoCDK and Runtime.CurrentSea == 3 and not HasItem("Cursed Dual Katana") then
-                InvokeCommF("CDKQuest", "Progress", "Good")
-                InvokeCommF("CDKQuest", "Progress", "Evil")
-                InvokeCommF("CDKQuest", "OpenDoor")
-                local cdkBoss = FindLiveEnemy("Cursed Skeleton Boss", false)
-                if cdkBoss then
-                    Runtime.TaskName = "CDK: Cursed Skeleton Boss"
-                    AttackAndHoverMob(cdkBoss, nil)
-                    return
-                end
-            end
-
-            if Config.AutoSoulGuitar and Runtime.CurrentSea == 3 and not HasItem("Soul Guitar") then
-                InvokeCommF("gravestoneEvent", 2)
-                InvokeCommF("GuitarPuzzleProgress", "Check")
-                local livingZombie = FindLiveEnemy("Living Zombie", false)
-                if livingZombie then
-                    Runtime.TaskName = "Soul Guitar: Living Zombies"
-                    AttackAndHoverMob(livingZombie, "Living Zombie")
-                    return
-                end
-            end
-
-            if Config.AutoSaber and Runtime.CurrentSea == 1 and not HasItem("Saber") then
-                InvokeCommF("ProQuestProgress", "RichSon")
-                InvokeCommF("ProQuestProgress", "PlaceRelic")
-                local expert = FindLiveEnemy("Saber Expert", false) or FindLiveEnemy("Mob Leader", false)
-                if expert then
-                    Runtime.TaskName = "Saber: " .. CleanMobName(expert.Name)
-                    AttackAndHoverMob(expert, nil)
-                    return
-                else
-                    Runtime.TaskName = "Moving to Saber Expert"
-                    MoveToCFrame(CFrame.new(-1458.89, 29.85, -50.63), false)
-                    return
-                end
-            end
-
-            if Config.AutoBartilo and Runtime.CurrentSea == 2 and GetLevel() >= 850 then
-                local prog = InvokeCommF("BartiloQuestProgress", "Bartilo")
-                if prog == 0 then
-                    local swan = FindLiveEnemy("Swan Pirate", false)
-                    if swan then
-                        Runtime.TaskName = "Bartilo: Swan Pirates"
-                        AttackAndHoverMob(swan, "Swan Pirate")
-                    else
-                        MoveToCFrame(CFrame.new(1068.66, 137.61, 1322.10), false)
-                    end
-                    return
-                elseif prog == 1 then
-                    local jeremy = FindLiveEnemy("Jeremy", false)
-                    if jeremy then
-                        Runtime.TaskName = "Bartilo: Jeremy"
-                        AttackAndHoverMob(jeremy, nil)
-                    else
-                        MoveToCFrame(CFrame.new(2099.88, 448.93, 853.20), false)
-                    end
-                    return
-                elseif prog == 2 then
-                    Runtime.TaskName = "Bartilo: Unlocking Plates"
-                    InvokeCommF("BartiloQuestProgress", "Plates")
-                    return
-                end
-            end
-
-            if Config.AutoRengoku and Runtime.CurrentSea == 2 and not HasItem("Rengoku") then
-                if HasItem("Hidden Key") then
-                    Runtime.TaskName = "Opening Rengoku Chest"
-                    EquipSelectedWeapon(nil, "Hidden Key")
-                    MoveToCFrame(CFrame.new(6571.12, 299.23, -6967.84), false)
-                    return
-                else
-                    local iceMob = FindLiveEnemy({"Awakened Ice Admiral", "Arctic Warrior", "Snow Lurker"}, false)
-                    if iceMob then
-                        Runtime.TaskName = "Farming Hidden Key"
-                        AttackAndHoverMob(iceMob, CleanMobName(iceMob.Name))
-                    else
-                        MoveToCFrame(CFrame.new(5667.65, 50.0, -6486.08), false)
-                    end
-                    return
-                end
-            end
-
-            if Config.AutoYama and Runtime.CurrentSea == 3 and not HasItem("Yama") then
-                local map = Workspace:FindFirstChild("Map")
-                local sealed = map and map:FindFirstChild("Waterfall") and map.Waterfall:FindFirstChild("SealedKatana")
-                if sealed and sealed:FindFirstChild("Handle") then
-                    Runtime.TaskName = "Pulling Yama"
-                    MoveToCFrame(sealed.Handle.CFrame, false)
-                    FireAllInteractables(sealed)
-                    return
-                end
-            end
-
-            if Config.AutoTushita and Runtime.CurrentSea == 3 and HasItem("Holy Torch") then
-                local map = Workspace:FindFirstChild("Map")
-                local torches = map and map:FindFirstChild("Turtle") and map.Turtle:FindFirstChild("QuestTorches")
-                if torches then
-                    for i = 1, 5 do
-                        local t = torches:FindFirstChild("Torch" .. tostring(i))
-                        if t and t:IsA("BasePart") then
-                            Runtime.TaskName = "Tushita Torch " .. tostring(i)
-                            EquipSelectedWeapon(nil, "Holy Torch")
-                            MoveToCFrame(t.CFrame, false)
-                            if (root.Position - t.Position).Magnitude <= 12 then
-                                FireAllInteractables(t)
-                            end
-                        end
-                    end
-                    return
-                end
-            end
-
-            -- 10. Auto Chest Farm
-            if Config.AutoFarmChest then
-                local bestChest, minD = nil, math.huge
-                for _, v in ipairs(Workspace:GetDescendants()) do
-                    if string.find(v.Name, "Chest") and v:IsA("BasePart") and v:FindFirstChild("TouchInterest") then
-                        local d = (v.Position - root.Position).Magnitude
-                        if d < minD then
-                            minD = d
-                            bestChest = v
-                        end
-                    end
-                end
-                if bestChest then
-                    Runtime.TaskName = "Farming Chest"
-                    MoveToCFrame(bestChest.CFrame, false)
-                    if (root.Position - bestChest.Position).Magnitude <= 10 then
-                        FireAllInteractables(bestChest)
-                    end
-                    return
-                end
-            end
-
-            -- 11. Auto Factory & Auto Pirate Raid
-            if Config.AutoFactory and Runtime.CurrentSea == 2 then
-                local core = FindLiveEnemy("Core", false)
-                if core then
-                    Runtime.TaskName = "Attacking Factory Core"
-                    AttackAndHoverMob(core, nil)
-                    return
-                end
-            end
-
-            if Config.AutoPirateRaid and Runtime.CurrentSea == 3 then
-                local castleCF = CFrame.new(-5543.53, 313.80, -2964.25)
-                local raidMob = FindLiveEnemy(nil, false, castleCF.Position, 800)
-                if raidMob and CleanMobName(raidMob.Name) ~= "Training Dummy" then
-                    Runtime.TaskName = "Pirate Raid: " .. CleanMobName(raidMob.Name)
-                    AttackAndHoverMob(raidMob, nil)
-                    return
-                elseif (root.Position - castleCF.Position).Magnitude > 600 then
-                    Runtime.TaskName = "Moving to Castle Raid"
-                    MoveToCFrame(castleCF, false)
-                    return
-                end
-            end
-
-            -- 12. Auto Elite Hunter
-            if Config.AutoEliteHunter and Runtime.CurrentSea == 3 then
-                local elite = FindLiveEnemy({"Diablo", "Deandre", "Urban"}, false)
-                if elite then
-                    Runtime.TaskName = "Killing Elite: " .. CleanMobName(elite.Name)
-                    AttackAndHoverMob(elite, nil)
-                    return
-                else
-                    if os.clock() - LastEliteCheck > 4.0 then
-                        LastEliteCheck = os.clock()
-                        InvokeCommF("EliteHunter")
-                    end
-                    for _, en in ipairs({"Diablo", "Deandre", "Urban"}) do
-                        local rep = ReplicatedStorage:FindFirstChild(en, true)
-                        if rep and rep:IsA("Model") and rep:FindFirstChild("HumanoidRootPart") then
-                            Runtime.TaskName = "Streaming Elite: " .. en
-                            MoveToCFrame(rep.HumanoidRootPart.CFrame * CFrame.new(0, Config.FarmDistanceY, 0), false)
-                            return
-                        end
-                    end
-                end
-            end
-
-            -- 13. Auto Cake Prince / Dough King
-            if Config.AutoFarmKatakuri and Runtime.CurrentSea == 3 then
-                local boss = FindLiveEnemy({"Cake Prince", "Dough King"}, false)
-                if boss then
-                    Runtime.TaskName = "Boss: " .. CleanMobName(boss.Name)
-                    AttackAndHoverMob(boss, nil)
-                    return
-                else
-                    if Config.AutoSpawnCakePrince and (os.clock() - LastCakeSpawn > 5.0) then
-                        LastCakeSpawn = os.clock()
-                        InvokeCommF("CakePrinceSpawner", true)
-                    end
-                    local cakeMob = FindLiveEnemy({"Cookie Crafter", "Cake Guard", "Baking Staff", "Head Baker"}, false)
-                    if cakeMob then
-                        Runtime.TaskName = "Cake Mobs: " .. CleanMobName(cakeMob.Name)
-                        AttackAndHoverMob(cakeMob, CleanMobName(cakeMob.Name))
-                    else
-                        Runtime.TaskName = "Waiting Cake Loaf"
-                        Runtime.BringPosCF = nil
-                        MoveToCFrame(CFrame.new(-2021.32, 65.0, -12028.72), false)
-                    end
-                    return
-                end
-            end
-
-            -- 14. Auto Bone Farm
-            if Config.AutoFarmBone and Runtime.CurrentSea == 3 then
-                local boneMob = FindLiveEnemy({"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy", "Possessed Mummy"}, false)
-                if boneMob then
-                    Runtime.TaskName = "Bone Farm: " .. CleanMobName(boneMob.Name)
-                    AttackAndHoverMob(boneMob, CleanMobName(boneMob.Name))
-                else
-                    Runtime.TaskName = "Patrolling Haunted Castle"
-                    Runtime.BringPosCF = nil
-                    MoveToCFrame(GetNextSpawnPatrolCFrame("Reborn Skeleton", CFrame.new(-9505.87, 172.10, 6158.99)), false)
-                end
-                return
-            end
-
-            -- 15. Auto Farm All Bosses
-            if Config.AutoFarmBosses then
-                local liveBoss, streamCF, bossName = FindAnyBossInServer()
-                if liveBoss then
-                    Runtime.TaskName = "Killing Boss: " .. tostring(bossName)
-                    AttackAndHoverMob(liveBoss, nil)
-                    return
-                elseif streamCF then
-                    Runtime.TaskName = "Streaming Boss: " .. tostring(bossName)
-                    Runtime.BringPosCF = nil
-                    MoveToCFrame(streamCF * CFrame.new(0, Config.FarmDistanceY, 0), false)
-                    return
-                else
-                    Runtime.TaskName = "Waiting For Boss Spawn"
-                end
-            end
-
-            -- 16. Auto Level Farm (SYNCHRONOUS QUEST HANDSHAKE: Never leaves NPC until Quest.Visible == true!)
-            if Config.AutoFarmLevel then
-                local qData = GetQuestForLevel()
-                if qData then
-                    if not HasValidActiveQuest(qData) then
-                        Runtime.TaskName = "Đến NPC Nhận Quest: " .. qData.QuestName
-                        Runtime.BringPosCF = nil
-                        local npcStandCF = qData.QuestPos * CFrame.new(0, 2, 0)
-                        MoveToCFrame(npcStandCF, false)
-
-                        -- Stand within 8 studs of NPC, request quest, and wait up to 1.5s for Quest.Visible == true before leaving!
-                        if (root.Position - npcStandCF.Position).Magnitude <= 8 and (os.clock() - Runtime.LastStartQuestTick > 1.0) then
-                            Runtime.LastStartQuestTick = os.clock()
-                            task.wait(0.15)
-                            InvokeCommF("StartQuest", qData.QuestName, qData.QuestLvl)
-                            local waitStart = os.clock()
-                            while (os.clock() - waitStart < 1.5) and not IsQuestFrameVisible() do
-                                task.wait(0.1)
-                            end
-                            if IsQuestFrameVisible() then
-                                Runtime.ConfirmedQuestName = qData.QuestName
-                            end
-                        end
-                    else
-                        local target = FindLiveEnemy(qData.Mob, false)
-                        if target then
-                            Runtime.TaskName = "Đang Đánh: " .. qData.Mob
-                            AttackAndHoverMob(target, qData.Mob)
-                        else
-                            Runtime.TaskName = "Tuần Tra Spawn: " .. qData.Mob
-                            Runtime.BringPosCF = nil
-                            MoveToCFrame(GetNextSpawnPatrolCFrame(qData.Mob, qData.MobPos), false)
-                        end
-                    end
-                end
-                return
-            end
-
-            -- 17. Auto Nearest or Standalone Mastery
-            if Config.AutoFarmNearest or Config.AutoFarmMastery then
-                local target = FindLiveEnemy(nil, false)
-                if target then
-                    Runtime.TaskName = "Engaging: " .. CleanMobName(target.Name)
-                    AttackAndHoverMob(target, CleanMobName(target.Name))
-                    return
-                end
-            end
-
-            Runtime.BringPosCF = nil
-            Runtime.TaskName = "Idle"
+            -- Haki in-loop
+            if S.AutoHaki       then FireRemote("Buso_Haki"); FireRemote("ActivateHaki","Buso") end
+            if S.AutoObservation then FireRemote("Observation"); FireRemote("ActivateHaki","Ken") end
         end)
     end
 end)
 
--- // 18. Background Services //
+-- Haki standalone loop
 task.spawn(function()
-    while SessionActive and ScreenGui.Parent do
-        task.wait(0.8)
-        pcall(function()
-            RefreshESPAndRadar()
-            StoreAllFruitsInBags()
+    while task.wait(1.2) do
+        if S.AutoHaki        then FireRemote("Buso_Haki"); FireRemote("ActivateHaki","Buso") end
+        if S.AutoObservation then FireRemote("Observation"); FireRemote("Ken_Haki"); FireRemote("ActivateHaki","Ken") end
+        if S.AutoObsV2       then FireRemote("Observation_V2") end
+    end
+end)
 
-            if Config.AutoStats then
-                local pts = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
-                if pts and pts.Value > 0 then
-                    InvokeCommF("AddPoint", Config.StatTarget, math.min(pts.Value, Config.StatPoints))
+-- Boss farm loop
+task.spawn(function()
+    while task.wait(0.2) do
+        if not S.AutoBoss then continue end
+        pcall(function()
+            local boss = findBoss(S.SelectedBoss)
+            if boss then attackTarget(boss) end
+        end)
+    end
+end)
+
+-- Sea beast loop
+task.spawn(function()
+    while task.wait(0.5) do
+        if not S.AutoSeaBeast then continue end
+        pcall(function()
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("Model") and
+                   (obj.Name:find("Sea") or obj.Name:find("SeaBeast") or obj.Name == "Sea Beast") then
+                    local oHum = obj:FindFirstChildWhichIsA("Humanoid")
+                    if oHum and oHum.Health > 0 then
+                        attackTarget(obj)
+                        break
+                    end
                 end
             end
-
-            if Config.AutoKen then
-                FireCommE("Ken", true)
-            end
-
-            if Config.AutoRandomFruit then
-                InvokeCommF("Cousin", "Buy")
-            end
-
-            if Config.AutoTradeBones then
-                InvokeCommF("Bones", "Buy", 1, 1)
-            end
-
-            if Config.AutoSnipeFruit then
-                InvokeCommF("GetFruits")
-                InvokeCommF("PurchaseRawFruit", Config.SniperFruitTarget, false)
-            end
-
-            if Config.AutoBuyChip and not HasItem("Special Microchip") then
-                InvokeCommF("RaidsNpc", "Select", Config.SelectedRaid)
-            end
-
-            if Config.AutoAwaken then
-                InvokeCommF("Awakener", "Check")
-                InvokeCommF("Awakener", "Awaken")
+            if S.AutoSummonSeaBeast then
+                FireRemote("SpawnSeaBeast")
+                FireRemote("SummonSeaBeast")
             end
         end)
     end
 end)
 
--- // 19. Clean Teardown //
-getgenv().RedzV16_Teardown = function()
-    SessionActive = false
-    StopMove()
-    for _, c in ipairs(Connections) do
-        pcall(function() c:Disconnect() end)
+-- Raid loop
+task.spawn(function()
+    while task.wait(0.5) do
+        if not S.AutoRaid then continue end
+        pcall(function()
+            if S.AutoStartRaid then
+                FireRemote("StartRaid", S.RaidType)
+            end
+            -- Attack raid mobs
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local oHum = obj:FindFirstChildWhichIsA("Humanoid")
+                    if oHum and oHum.Health > 0 and not Players:GetPlayerFromCharacter(obj) then
+                        attackTarget(obj)
+                    end
+                end
+            end
+        end)
     end
-    table.clear(Connections)
-    if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end
-    if ESPFolder and ESPFolder.Parent then ESPFolder:Destroy() end
-end
+end)
+
+-- Fruit sniper loop
+task.spawn(function()
+    while task.wait(0.15) do
+        if not S.FruitSniper then continue end
+        pcall(function()
+            local function tryGrab(folder)
+                if not folder then return end
+                for _, fruit in ipairs(folder:GetChildren()) do
+                    local part = fruit:FindFirstChildWhichIsA("BasePart")
+                    if part then
+                        local hrp2 = getHRP()
+                        if hrp2 then
+                            hrp2.CFrame = CFrame.new(part.Position)
+                            task.wait(0.06)
+                            FireRemote("CollectFruit", fruit)
+                            FireRemote("PickupFruit", fruit)
+                        end
+                    end
+                end
+            end
+            tryGrab(Workspace:FindFirstChild("StoredFruits"))
+            tryGrab(Workspace:FindFirstChild("Fruits"))
+        end)
+    end
+end)
+
+-- Auto collect fruit
+task.spawn(function()
+    while task.wait(0.3) do
+        if not S.AutoCollectFruit then continue end
+        pcall(function()
+            local function tryCollect(folder)
+                if not folder then return end
+                local hrp2 = getHRP()
+                if not hrp2 then return end
+                for _, fruit in ipairs(folder:GetChildren()) do
+                    local part = fruit:FindFirstChildWhichIsA("BasePart")
+                    if part and (hrp2.Position - part.Position).Magnitude < 3000 then
+                        hrp2.CFrame = CFrame.new(part.Position)
+                        task.wait(0.08)
+                        FireRemote("CollectFruit", fruit)
+                        FireRemote("PickupFruit", fruit)
+                    end
+                end
+            end
+            tryCollect(Workspace:FindFirstChild("StoredFruits"))
+            tryCollect(Workspace:FindFirstChild("Fruits"))
+        end)
+    end
+end)
+
+-- Auto store fruit
+task.spawn(function()
+    while task.wait(1.5) do
+        if not S.AutoStoreFruit then continue end
+        pcall(function()
+            for _, item in ipairs(LP.Backpack:GetChildren()) do
+                if item:FindFirstChild("FruitName") or item.Name:find("Fruit") then
+                    FireRemote("StoreFruit", item)
+                    FireRemote("StoreFruitInChest", item)
+                end
+            end
+        end)
+    end
+end)
+
+-- Auto eat fruit
+task.spawn(function()
+    while task.wait(2) do
+        if not S.AutoEatFruit then continue end
+        pcall(function()
+            for _, item in ipairs(LP.Backpack:GetChildren()) do
+                if item:FindFirstChild("FruitName") or item.Name:find("Fruit") then
+                    FireRemote("EatFruit", item)
+                    break
+                end
+            end
+        end)
+    end
+end)
+
+-- Auto buy fruit
+task.spawn(function()
+    while task.wait(3) do
+        if not S.AutoBuyFruit then continue end
+        pcall(function()
+            FireRemote("BuyRandomFruit")
+            FireRemote("BuyFruit", "Random")
+        end)
+    end
+end)
+
+-- Chat spammer
+task.spawn(function()
+    while task.wait(5) do
+        if not S.ChatSpammer then continue end
+        pcall(function()
+            local msg = S.ChatSpamMsg ~= "" and S.ChatSpamMsg or "Astra Hub | discord.gg/astrahub"
+            local chatRemote = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+                and ReplicatedStorage.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+            if chatRemote then
+                chatRemote:FireServer(msg, "All")
+            end
+        end)
+    end
+end)
+
+-- Kill say
+Players.PlayerRemoving:Connect(function(pl)
+    if not S.KillSay or pl == LP then return end
+    pcall(function()
+        local msg = S.KillSayMsg ~= "" and S.KillSayMsg or "GG ez"
+        local chatRemote = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+            and ReplicatedStorage.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+        if chatRemote then chatRemote:FireServer(msg, "All") end
+    end)
+end)
+
+-- =============================================
+-- [[ CHARACTER RESPAWN ]]
+-- =============================================
+LP.CharacterAdded:Connect(function(char)
+    char:WaitForChild("HumanoidRootPart", 5)
+    char:WaitForChild("Humanoid", 5)
+    -- Re-apply fly if it was on before death
+    if S.FlyEnabled then flyActive = false end
+end)
+
+-- =============================================
+-- [[ STARTUP ]]
+-- =============================================
+task.wait(0.8)
+Notify("✦ Astra Hub", "v5.0 loaded! " .. S.ToggleKey.Name .. " to toggle UI.", 5)
